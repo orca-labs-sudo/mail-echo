@@ -21,7 +21,7 @@ services:
       - "8002:8002"
     volumes:
       - ./:/app
-    command: python app/mcp_server.py
+    command: python -m app.mcp_server
 
 networks:
   default:
