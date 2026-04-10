@@ -35,26 +35,26 @@ app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
 
 @app.get("/", response_class=HTMLResponse)
 def root(request: Request):
-    return ui.TemplateResponse("base.html", {"request": request})
+    return ui.TemplateResponse(request, "base.html")
 
 @app.get("/leads", response_class=HTMLResponse)
 def view_leads(request: Request):
-    return ui.TemplateResponse("leads.html", {"request": request})
+    return ui.TemplateResponse(request, "leads.html")
 
 @app.get("/templates", response_class=HTMLResponse)
 def view_templates(request: Request):
-    return ui.TemplateResponse("templates_list.html", {"request": request})
+    return ui.TemplateResponse(request, "templates_list.html")
 
 @app.get("/templates/new", response_class=HTMLResponse)
 def new_template(request: Request):
-    return ui.TemplateResponse("template_edit.html", {"request": request, "template": None})
+    return ui.TemplateResponse(request, "template_edit.html", {"template": None})
 
 @app.get("/templates/{id}/edit", response_class=HTMLResponse)
 def edit_template(request: Request, id: int, db: Session = Depends(get_db)):
     from app.models import MailTemplate
     tpl = db.query(MailTemplate).filter(MailTemplate.id == id).first()
-    return ui.TemplateResponse("template_edit.html", {"request": request, "template": tpl})
+    return ui.TemplateResponse(request, "template_edit.html", {"template": tpl})
 
 @app.get("/stats", response_class=HTMLResponse)
 def view_stats(request: Request):
-    return ui.TemplateResponse("stats.html", {"request": request})
+    return ui.TemplateResponse(request, "stats.html")
