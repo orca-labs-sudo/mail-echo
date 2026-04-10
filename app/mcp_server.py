@@ -74,4 +74,4 @@ if __name__ == "__main__":
     # Standard security measure to ensure valid tokens
     # Typically, MCP servers can enforce Auth via proxy or dependencies. 
     # NGINX might be missing the proxy_pass auth, but we'll run SSE here.
-    mcp.run(transport='sse')
+    mcp.run(transport='sse', host='0.0.0.0', port=8002)
