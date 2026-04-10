@@ -24,7 +24,7 @@ from fastapi import Depends
 from app.database import get_db
 
 app.mount("/static", StaticFiles(directory="ui/static"), name="static")
-templates = Jinja2Templates(directory="ui/templates")
+ui = Jinja2Templates(directory="ui/templates")
 
 app.include_router(leads.router, prefix="/api/leads", tags=["leads"])
 app.include_router(templates.router, prefix="/api/templates", tags=["templates"])
@@ -35,26 +35,26 @@ app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
 
 @app.get("/", response_class=HTMLResponse)
 def root(request: Request):
-    return templates.TemplateResponse("base.html", {"request": request})
+    return ui.TemplateResponse("base.html", {"request": request})
 
 @app.get("/leads", response_class=HTMLResponse)
 def view_leads(request: Request):
-    return templates.TemplateResponse("leads.html", {"request": request})
+    return ui.TemplateResponse("leads.html", {"request": request})
 
 @app.get("/templates", response_class=HTMLResponse)
 def view_templates(request: Request):
-    return templates.TemplateResponse("templates_list.html", {"request": request})
+    return ui.TemplateResponse("templates_list.html", {"request": request})
 
 @app.get("/templates/new", response_class=HTMLResponse)
 def new_template(request: Request):
-    return templates.TemplateResponse("template_edit.html", {"request": request, "template": None})
+    return ui.TemplateResponse("template_edit.html", {"request": request, "template": None})
 
 @app.get("/templates/{id}/edit", response_class=HTMLResponse)
 def edit_template(request: Request, id: int, db: Session = Depends(get_db)):
     from app.models import MailTemplate
     tpl = db.query(MailTemplate).filter(MailTemplate.id == id).first()
-    return templates.TemplateResponse("template_edit.html", {"request": request, "template": tpl})
+    return ui.TemplateResponse("template_edit.html", {"request": request, "template": tpl})
 
 @app.get("/stats", response_class=HTMLResponse)
 def view_stats(request: Request):
-    return templates.TemplateResponse("stats.html", {"request": request})
+    return ui.TemplateResponse("stats.html", {"request": request})
