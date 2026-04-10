@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Leads</h2>
+<p>Die Lead-Datenbank wird primär über Claude und CSV-Upserts befüllt.</p>
+<!-- Placeholder for fetch/display logic via JS -->
+<div id="leads-container">Lade Leads...</div>
+<script>
+    fetch('/api/leads/').then(r => r.json()).then(data => {
+        const container = document.getElementById('leads-container');
+        if(!data.length) return container.innerText = 'Keine Leads gefunden.';
+        let html = '<table><tr><th>Firma</th><th>Email</th><th>Status</th></tr>';
+        data.forEach(l => {
+            html += `<tr><td>${l.firmenname}</td><td>${l.email}</td><td>${l.status}</td></tr>`;
+        });
+        html += '</table>';
+        container.innerHTML = html;
+    });
+</script>
+{% endblock %}

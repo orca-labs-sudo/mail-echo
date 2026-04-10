@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>{% if template %}Template bearbeiten{% else %}Neues Template{% endif %}</h2>
+<form id="template-form">
+    <label>Name:</label><br>
+    <input type="text" id="name" value="{{ template.name if template else '' }}" required style="width:100%;"><br><br>
+    
+    <label>Stufe:</label><br>
+    <input type="number" id="stufe" value="{{ template.stufe if template else 1 }}" min="1" max="3" required><br><br>
+    
+    <label>Betreff:</label><br>
+    <input type="text" id="betreff" value="{{ template.betreff if template else '' }}" required style="width:100%;"><br><br>
+    
+    <label>HTML Body:</label><br>
+    <button type="button" onclick="insertText('[FIRMA]')">[+Firma]</button>
+    <button type="button" onclick="insertText('[ANSPRECHPARTNER]')">[+Ansprechpartner]</button><br>
+    <textarea id="html_body" rows="15" style="width:100%; margin-top:5px;" required>{{ template.html_body if template else '' }}</textarea><br><br>
+    
+    <button type="submit" style="padding:10px 20px; background:#007bff; color:white; border:none; border-radius:3px; cursor:pointer;">Speichern</button>
+</form>
+
+<script>
+    function insertText(text) {
+        const el = document.getElementById('html_body');
+        const start = el.selectionStart;
+        const end = el.selectionEnd;
+        el.value = el.value.substring(0, start) + text + el.value.substring(end);
+        el.focus();
+        el.selectionEnd = start + text.length;
+    }
+
+    document.getElementById('template-form').onsubmit = function(e) {
+        e.preventDefault();
+        const data = {
+            name: document.getElementById('name').value,
+            stufe: parseInt(document.getElementById('stufe').value),
+            betreff: document.getElementById('betreff').value,
+            html_body: document.getElementById('html_body').value
+        };
+        
+        const isEdit = {{ 'true' if template else 'false' }};
+        const url = isEdit ? '/api/templates/{{ template.id if template else "" }}' : '/api/templates/';
+        const method = isEdit ? 'PUT' : 'POST';
+        
+        fetch(url, {
+            method: method,
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        }).then(r => r.json()).then(res => {
+            window.location.href = '/templates';
+        });
+    };
+</script>
+{% endblock %}

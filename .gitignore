@@ -1,43 +1,4 @@
-# Environment
-.env
-.env.production
-*.env
-
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
-# Python
 __pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-.Python
-venv/
-.venv/
-env/
-*.egg-info/
-dist/
-build/
-
-# Logs
-*.log
-logs/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Docker
-*.override.yml
-
-# Media / Uploads
-uploads/
-media/
+*.pyc
+.env
+mail_echo.db

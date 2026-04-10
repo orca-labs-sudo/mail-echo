@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+SQLAlchemy
+Jinja2
+python-dotenv
+mcp[sse]
+python-multipart
