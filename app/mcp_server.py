@@ -5,7 +5,7 @@ import requests
 from app.config import SECRET_KEY
 import os
 
-mcp = FastMCP("Mail-Echo")
+mcp = FastMCP("Mail-Echo", host="0.0.0.0", port=8002)
 
 # Interne Kommunikation auf den FastAPI Server im Docker-Netzwerk
 INTERNAL_API_URL = "http://app:8010" 
@@ -74,4 +74,4 @@ if __name__ == "__main__":
     # Standard security measure to ensure valid tokens
     # Typically, MCP servers can enforce Auth via proxy or dependencies. 
     # NGINX might be missing the proxy_pass auth, but we'll run SSE here.
-    mcp.run(transport='sse', host='0.0.0.0', port=8002)
+    mcp.run(transport='sse')
