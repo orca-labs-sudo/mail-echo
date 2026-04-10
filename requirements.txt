@@ -5,3 +5,4 @@ Jinja2
 python-dotenv
 mcp[sse]
 python-multipart
+requests
