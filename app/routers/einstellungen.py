@@ -121,23 +121,32 @@ def speichere_imap(config: ImapConfig, db: Session = Depends(get_db)):
 
 
 class SmtpTestRequest(BaseModel):
-    smtp_host: str
-    smtp_port: int
-    smtp_user: str
-    smtp_password: str
-    smtp_from: str
     test_empfaenger: Optional[str] = None
 
 
 @router.post("/smtp/test")
-def teste_smtp(req: SmtpTestRequest):
-    """SMTP-Verbindung testen (mit optionaler Test-Mail)."""
+def teste_smtp(req: SmtpTestRequest, db: Session = Depends(get_db)):
+    """SMTP-Verbindung mit gespeicherter Config testen (kein Passwort-Input nötig)."""
+    from app.config import SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM
+    defaults = {
+        "smtp_host": SMTP_HOST,
+        "smtp_port": str(SMTP_PORT),
+        "smtp_user": SMTP_USER,
+        "smtp_password": SMTP_PASSWORD,
+        "smtp_from": SMTP_FROM,
+    }
+    db_config = _lese_config(db, SMTP_KEYS)
+    cfg = {**defaults, **{k: v for k, v in db_config.items() if v}}
+
+    if not cfg.get("smtp_password"):
+        return {"ok": False, "schritte": ["FEHLER: Kein Passwort gespeichert — bitte zuerst in Einstellungen speichern."]}
+
     ergebnis = test_smtp_verbindung(
-        host=req.smtp_host,
-        port=req.smtp_port,
-        user=req.smtp_user,
-        password=req.smtp_password,
-        from_addr=req.smtp_from,
+        host=cfg["smtp_host"],
+        port=int(cfg["smtp_port"]),
+        user=cfg["smtp_user"],
+        password=cfg["smtp_password"],
+        from_addr=cfg["smtp_from"],
         test_empfaenger=req.test_empfaenger or None,
     )
     return ergebnis

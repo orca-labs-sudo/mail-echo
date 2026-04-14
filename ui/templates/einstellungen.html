@@ -60,6 +60,7 @@
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:4px;">
             <button type="submit" class="btn btn-primary">Speichern</button>
             <button type="button" class="btn btn-secondary" onclick="testSmtp()">Verbindung testen</button>
+            <small style="color:#888;">nutzt gespeicherte Zugangsdaten</small>
         </div>
         <div style="display:flex; gap:8px; margin-top:10px; align-items:center; flex-wrap:wrap;">
             <input type="email" id="smtp_test_empfaenger" placeholder="Test-Mail an: test@example.de" style="padding:7px 10px; border:1px solid #ccc; border-radius:4px; font-size:13px; flex:1; max-width:280px;">
@@ -172,25 +173,15 @@ document.getElementById('imap-form').addEventListener('submit', function(e) {
     }).catch(() => showStatus('imap-status', 'Verbindungsfehler zum Server.', 'fehler'));
 });
 
-function buildTestPayload(mitMail) {
-    return {
-        smtp_host: document.getElementById('smtp_host').value.trim(),
-        smtp_port: parseInt(document.getElementById('smtp_port').value) || 587,
-        smtp_user: document.getElementById('smtp_user').value.trim(),
-        smtp_password: document.getElementById('smtp_password').value,
-        smtp_from: document.getElementById('smtp_from').value.trim(),
-        test_empfaenger: mitMail ? (document.getElementById('smtp_test_empfaenger').value.trim() || null) : null,
-    };
-}
-
-function runTest(payload) {
+function runTest(mitMail) {
     const logEl = document.getElementById('smtp-test-log');
     showStatus('smtp-status', '⏳ Verbindungstest läuft...', 'warn');
     logEl.innerHTML = '';
     logEl.style.display = 'block';
 
-    if (!payload.smtp_password) {
-        showStatus('smtp-status', 'Passwort eingeben um zu testen (wird nicht gespeichert).', 'warn');
+    const empf = mitMail ? (document.getElementById('smtp_test_empfaenger').value.trim() || null) : null;
+    if (mitMail && !empf) {
+        showStatus('smtp-status', 'Bitte Test-Empfänger eingeben.', 'warn');
         logEl.style.display = 'none';
         return;
     }
@@ -198,7 +189,7 @@ function runTest(payload) {
     fetch('/api/einstellungen/smtp/test', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ test_empfaenger: empf })
     }).then(r => r.json()).then(res => {
         logEl.innerHTML = res.schritte.map(s => {
             const cls = s.startsWith('FEHLER') ? 'err' : 'ok';
@@ -207,16 +198,12 @@ function runTest(payload) {
         if (res.ok) {
             showStatus('smtp-status', '✓ Verbindung erfolgreich!', 'ok');
         } else {
-            showStatus('smtp-status', '✗ Verbindungstest fehlgeschlagen.', 'fehler');
+            showStatus('smtp-status', '✗ Verbindungstest fehlgeschlagen — Details oben.', 'fehler');
         }
     }).catch(() => showStatus('smtp-status', 'Verbindungsfehler zum Server.', 'fehler'));
 }
 
-function testSmtp() { runTest(buildTestPayload(false)); }
-function testSmtpMitMail() {
-    const empf = document.getElementById('smtp_test_empfaenger').value.trim();
-    if (!empf) { showStatus('smtp-status', 'Bitte Test-Empfänger eingeben.', 'warn'); return; }
-    runTest(buildTestPayload(true));
-}
+function testSmtp() { runTest(false); }
+function testSmtpMitMail() { runTest(true); }
 </script>
 {% endblock %}
