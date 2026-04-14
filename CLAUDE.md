@@ -39,8 +39,8 @@ AWR24 ist eine Verkehrsrechtskanzlei die kostenloses Unfallmanagement für Fuhrp
 | Subdomain | mail-echo.techniker0.me |
 | Container | `mail-echo` |
 | NGINX-Config | `nginx/nginx.mail-echo.conf` |
-| SMTP | vertrieb@awr24.de (IONOS, Port 587) |
-| IMAP | vertrieb@awr24.de (IONOS, Port 993) |
+| SMTP | info@awr24-service.de (IONOS, Port 587) |
+| IMAP | info@awr24-service.de (IONOS, Port 993) |
 
 ---
 
@@ -55,8 +55,8 @@ Mail-Echo Service (techniker0.me)
     ├── REST API        → MCP-Tools rufen hier an
     ├── Web UI          → Spielplatz (Browser, KEIN Claude)
     ├── SQLite DB       → Templates, Versand-Log, Posteingang
-    ├── SMTP            → vertrieb@awr24.de (Ausgang)
-    └── IMAP            → vertrieb@awr24.de (Eingang)
+    ├── SMTP            → info@awr24-service.de (Ausgang)
+    └── IMAP            → info@awr24-service.de (Eingang)
 
 Kanban/CRM (getrennt):
     Claude → MCP → ycnex.de Kanzlei-App (VertriebsLead)
