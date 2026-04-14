@@ -71,3 +71,12 @@ class InteresseKlick(Base):
     tracking_uuid = Column(String, nullable=False)
     angeklickt_am = Column(DateTime, default=func.now())
     verarbeitet = Column(Boolean, default=False)
+
+
+class KonfigurationEintrag(Base):
+    __tablename__ = "konfiguration"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    schluessel = Column(String, unique=True, nullable=False, index=True)
+    wert = Column(String, nullable=True)
+    geaendert_am = Column(DateTime, default=func.now(), onupdate=func.now())

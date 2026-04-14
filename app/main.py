@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from app.database import engine, Base
-from app.routers import templates, mailing, tracking, posteingang, stats, abmeldungen, hooks, hooks_api
+from app.routers import templates, mailing, tracking, posteingang, stats, abmeldungen, hooks, hooks_api, einstellungen
 from app.config import DASHBOARD_USER, DASHBOARD_PASSWORD
 import secrets
 
@@ -15,6 +15,7 @@ with engine.connect() as conn:
         "ALTER TABLE versand_log ADD COLUMN email TEXT",
         "ALTER TABLE versand_log ADD COLUMN firmenname TEXT",
         "ALTER TABLE versand_log ADD COLUMN ansprechpartner TEXT",
+        "CREATE TABLE IF NOT EXISTS konfiguration (id INTEGER PRIMARY KEY AUTOINCREMENT, schluessel TEXT UNIQUE NOT NULL, wert TEXT, geaendert_am DATETIME DEFAULT CURRENT_TIMESTAMP)",
     ]:
         try:
             conn.execute(text(stmt))
@@ -62,10 +63,11 @@ app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
 app.include_router(abmeldungen.router, prefix="/api/abmeldungen", tags=["abmeldungen"])
 app.include_router(hooks.router, prefix="/hook", tags=["hooks-public"])
 app.include_router(hooks_api.router, prefix="/api/hooks", tags=["hooks-api"])
+app.include_router(einstellungen.router, prefix="/api/einstellungen", tags=["einstellungen"])
 
 @app.get("/", response_class=HTMLResponse)
 def root(request: Request, _=Depends(require_auth)):
-    return ui.TemplateResponse(request, "base.html")
+    return ui.TemplateResponse(request, "index.html")
 
 @app.get("/templates", response_class=HTMLResponse)
 def view_templates(request: Request, _=Depends(require_auth)):
@@ -84,3 +86,11 @@ def edit_template(request: Request, id: int, db: Session = Depends(get_db), _=De
 @app.get("/stats", response_class=HTMLResponse)
 def view_stats(request: Request, _=Depends(require_auth)):
     return ui.TemplateResponse(request, "stats.html")
+
+@app.get("/einstellungen", response_class=HTMLResponse)
+def view_einstellungen(request: Request, _=Depends(require_auth)):
+    return ui.TemplateResponse(request, "einstellungen.html")
+
+@app.get("/leads", response_class=HTMLResponse)
+def view_leads(request: Request, _=Depends(require_auth)):
+    return ui.TemplateResponse(request, "leads.html")

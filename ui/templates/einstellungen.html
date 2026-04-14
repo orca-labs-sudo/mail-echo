@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Einstellungen</h2>
+
+<style>
+.section { background:#fff; border:1px solid #e0e0e0; border-radius:6px; padding:24px; margin-bottom:24px; box-shadow:0 1px 3px rgba(0,0,0,0.06); }
+.section h3 { margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px; }
+.form-row { display:flex; gap:16px; margin-bottom:14px; flex-wrap:wrap; }
+.form-group { display:flex; flex-direction:column; flex:1; min-width:200px; }
+.form-group label { font-size:12px; color:#666; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.3px; }
+.form-group input { padding:8px 10px; border:1px solid #ccc; border-radius:4px; font-size:14px; }
+.form-group input:focus { outline:none; border-color:#007bff; box-shadow:0 0 0 2px rgba(0,123,255,0.15); }
+.btn { padding:9px 18px; border:none; border-radius:4px; cursor:pointer; font-size:14px; font-weight:bold; }
+.btn-primary { background:#007bff; color:#fff; }
+.btn-primary:hover { background:#0056b3; }
+.btn-secondary { background:#6c757d; color:#fff; }
+.btn-secondary:hover { background:#545b62; }
+.btn-success { background:#28a745; color:#fff; }
+.btn-success:hover { background:#1e7e34; }
+.status-box { margin-top:14px; padding:10px 14px; border-radius:4px; font-size:13px; display:none; }
+.status-ok { background:#d4edda; color:#155724; border:1px solid #c3e6cb; }
+.status-fehler { background:#f8d7da; color:#721c24; border:1px solid #f5c6cb; }
+.status-warn { background:#fff3cd; color:#856404; border:1px solid #ffeeba; }
+.test-log { font-family:monospace; font-size:12px; background:#f8f9fa; border:1px solid #dee2e6; border-radius:4px; padding:10px; margin-top:10px; max-height:200px; overflow-y:auto; display:none; }
+.test-log li { list-style:none; padding:2px 0; }
+.test-log li.ok { color:#155724; }
+.test-log li.err { color:#721c24; font-weight:bold; }
+</style>
+
+<!-- SMTP -->
+<div class="section">
+    <h3>SMTP — Ausgehende Mail</h3>
+    <form id="smtp-form">
+        <div class="form-row">
+            <div class="form-group">
+                <label>SMTP Host</label>
+                <input type="text" id="smtp_host" placeholder="smtp.ionos.de">
+            </div>
+            <div class="form-group" style="max-width:120px;">
+                <label>Port</label>
+                <input type="number" id="smtp_port" placeholder="587">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Benutzername</label>
+                <input type="text" id="smtp_user" placeholder="info@example.de" autocomplete="username">
+            </div>
+            <div class="form-group">
+                <label>Passwort <span style="color:#aaa; font-weight:normal;">(leer = unverändert)</span></label>
+                <input type="password" id="smtp_password" placeholder="••••••••" autocomplete="current-password">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Absender-Adresse (From)</label>
+                <input type="email" id="smtp_from" placeholder="info@awr24-service.de">
+            </div>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:4px;">
+            <button type="submit" class="btn btn-primary">Speichern</button>
+            <button type="button" class="btn btn-secondary" onclick="testSmtp()">Verbindung testen</button>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:10px; align-items:center; flex-wrap:wrap;">
+            <input type="email" id="smtp_test_empfaenger" placeholder="Test-Mail an: test@example.de" style="padding:7px 10px; border:1px solid #ccc; border-radius:4px; font-size:13px; flex:1; max-width:280px;">
+            <button type="button" class="btn btn-success" onclick="testSmtpMitMail()">Test-Mail senden</button>
+        </div>
+        <div id="smtp-status" class="status-box"></div>
+        <ul id="smtp-test-log" class="test-log"></ul>
+    </form>
+</div>
+
+<!-- IMAP -->
+<div class="section">
+    <h3>IMAP — Eingehende Mail</h3>
+    <form id="imap-form">
+        <div class="form-row">
+            <div class="form-group">
+                <label>IMAP Host</label>
+                <input type="text" id="imap_host" placeholder="imap.ionos.de">
+            </div>
+            <div class="form-group" style="max-width:120px;">
+                <label>Port</label>
+                <input type="number" id="imap_port" placeholder="993">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Benutzername</label>
+                <input type="text" id="imap_user" placeholder="info@example.de" autocomplete="username">
+            </div>
+            <div class="form-group">
+                <label>Passwort <span style="color:#aaa; font-weight:normal;">(leer = unverändert)</span></label>
+                <input type="password" id="imap_password" placeholder="••••••••" autocomplete="current-password">
+            </div>
+        </div>
+        <div style="margin-top:4px;">
+            <button type="submit" class="btn btn-primary">Speichern</button>
+        </div>
+        <div id="imap-status" class="status-box"></div>
+    </form>
+</div>
+
+<script>
+function showStatus(id, msg, typ) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.className = 'status-box ' + (typ === 'ok' ? 'status-ok' : typ === 'warn' ? 'status-warn' : 'status-fehler');
+    el.style.display = 'block';
+}
+
+// SMTP-Config laden
+fetch('/api/einstellungen/smtp').then(r => r.json()).then(cfg => {
+    document.getElementById('smtp_host').value = cfg.smtp_host || '';
+    document.getElementById('smtp_port').value = cfg.smtp_port || '587';
+    document.getElementById('smtp_user').value = cfg.smtp_user || '';
+    document.getElementById('smtp_from').value = cfg.smtp_from || '';
+    // Passwort absichtlich leer lassen (Sicherheit)
+});
+
+// IMAP-Config laden
+fetch('/api/einstellungen/imap').then(r => r.json()).then(cfg => {
+    document.getElementById('imap_host').value = cfg.imap_host || '';
+    document.getElementById('imap_port').value = cfg.imap_port || '993';
+    document.getElementById('imap_user').value = cfg.imap_user || '';
+});
+
+// SMTP speichern
+document.getElementById('smtp-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const body = {
+        smtp_host: document.getElementById('smtp_host').value.trim(),
+        smtp_port: document.getElementById('smtp_port').value.trim(),
+        smtp_user: document.getElementById('smtp_user').value.trim(),
+        smtp_from: document.getElementById('smtp_from').value.trim(),
+        smtp_password: document.getElementById('smtp_password').value || null,
+    };
+    fetch('/api/einstellungen/smtp', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+    }).then(r => r.json()).then(res => {
+        if (res.status === 'gespeichert') {
+            showStatus('smtp-status', '✓ SMTP-Einstellungen gespeichert.', 'ok');
+            document.getElementById('smtp_password').value = '';
+        } else {
+            showStatus('smtp-status', 'Fehler beim Speichern.', 'fehler');
+        }
+    }).catch(() => showStatus('smtp-status', 'Verbindungsfehler zum Server.', 'fehler'));
+});
+
+// IMAP speichern
+document.getElementById('imap-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const body = {
+        imap_host: document.getElementById('imap_host').value.trim(),
+        imap_port: document.getElementById('imap_port').value.trim(),
+        imap_user: document.getElementById('imap_user').value.trim(),
+        imap_password: document.getElementById('imap_password').value || null,
+    };
+    fetch('/api/einstellungen/imap', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+    }).then(r => r.json()).then(res => {
+        if (res.status === 'gespeichert') {
+            showStatus('imap-status', '✓ IMAP-Einstellungen gespeichert.', 'ok');
+            document.getElementById('imap_password').value = '';
+        } else {
+            showStatus('imap-status', 'Fehler beim Speichern.', 'fehler');
+        }
+    }).catch(() => showStatus('imap-status', 'Verbindungsfehler zum Server.', 'fehler'));
+});
+
+function buildTestPayload(mitMail) {
+    return {
+        smtp_host: document.getElementById('smtp_host').value.trim(),
+        smtp_port: parseInt(document.getElementById('smtp_port').value) || 587,
+        smtp_user: document.getElementById('smtp_user').value.trim(),
+        smtp_password: document.getElementById('smtp_password').value,
+        smtp_from: document.getElementById('smtp_from').value.trim(),
+        test_empfaenger: mitMail ? (document.getElementById('smtp_test_empfaenger').value.trim() || null) : null,
+    };
+}
+
+function runTest(payload) {
+    const logEl = document.getElementById('smtp-test-log');
+    showStatus('smtp-status', '⏳ Verbindungstest läuft...', 'warn');
+    logEl.innerHTML = '';
+    logEl.style.display = 'block';
+
+    if (!payload.smtp_password) {
+        showStatus('smtp-status', 'Passwort eingeben um zu testen (wird nicht gespeichert).', 'warn');
+        logEl.style.display = 'none';
+        return;
+    }
+
+    fetch('/api/einstellungen/smtp/test', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+    }).then(r => r.json()).then(res => {
+        logEl.innerHTML = res.schritte.map(s => {
+            const cls = s.startsWith('FEHLER') ? 'err' : 'ok';
+            return `<li class="${cls}">${s.startsWith('FEHLER') ? '✗' : '✓'} ${s}</li>`;
+        }).join('');
+        if (res.ok) {
+            showStatus('smtp-status', '✓ Verbindung erfolgreich!', 'ok');
+        } else {
+            showStatus('smtp-status', '✗ Verbindungstest fehlgeschlagen.', 'fehler');
+        }
+    }).catch(() => showStatus('smtp-status', 'Verbindungsfehler zum Server.', 'fehler'));
+}
+
+function testSmtp() { runTest(buildTestPayload(false)); }
+function testSmtpMitMail() {
+    const empf = document.getElementById('smtp_test_empfaenger').value.trim();
+    if (!empf) { showStatus('smtp-status', 'Bitte Test-Empfänger eingeben.', 'warn'); return; }
+    runTest(buildTestPayload(true));
+}
+</script>
+{% endblock %}

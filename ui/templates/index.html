@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Dashboard</h2>
+
+<!-- Schnell-Stats -->
+<div id="stats-cards" style="display:flex; gap:16px; margin-bottom:24px; flex-wrap:wrap;">
+    <div class="card" style="flex:1; min-width:140px;">
+        <div class="card-label">Mails gesamt</div>
+        <div class="card-value" id="stat-gesamt">—</div>
+    </div>
+    <div class="card" style="flex:1; min-width:140px;">
+        <div class="card-label">Heute gesendet</div>
+        <div class="card-value" id="stat-heute">—</div>
+    </div>
+    <div class="card" style="flex:1; min-width:140px;">
+        <div class="card-label">Öffnungen</div>
+        <div class="card-value" id="stat-oeffnungen">—</div>
+    </div>
+    <div class="card" style="flex:1; min-width:140px;">
+        <div class="card-label">Abmeldungen</div>
+        <div class="card-value" id="stat-abmeldungen">—</div>
+    </div>
+    <div class="card" style="flex:1; min-width:180px;">
+        <div class="card-label">SMTP-Status</div>
+        <div id="smtp-status-badge" style="margin-top:8px;">
+            <span id="smtp-status-text" style="font-size:14px; color:#888;">Prüfe...</span>
+            <button onclick="testSmtpSchnell()" style="margin-left:8px; padding:2px 8px; font-size:12px; cursor:pointer;">Test</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 16px 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.card-label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.card-value { font-size: 28px; font-weight: bold; color: #333; }
+.badge-ok { background: #d4edda; color: #155724; padding: 3px 10px; border-radius: 12px; font-size: 13px; font-weight: bold; }
+.badge-fehler { background: #f8d7da; color: #721c24; padding: 3px 10px; border-radius: 12px; font-size: 13px; font-weight: bold; }
+.badge-warn { background: #fff3cd; color: #856404; padding: 3px 10px; border-radius: 12px; font-size: 13px; font-weight: bold; }
+</style>
+
+<!-- Letzter Versand-Log -->
+<h3 style="margin-top:0;">Letzter Versand <span style="font-size:13px; color:#888; font-weight:normal;" id="log-count"></span></h3>
+<div id="log-container">
+    <p style="color:#888;">Lade Versand-Log...</p>
+</div>
+
+<script>
+// Stats laden
+fetch('/api/stats/').then(r => r.json()).then(data => {
+    const gesamt = (data.mails_versendet?.stufe_1 || 0) + (data.mails_versendet?.stufe_2 || 0) + (data.mails_versendet?.stufe_3 || 0);
+    document.getElementById('stat-gesamt').textContent = gesamt;
+    document.getElementById('stat-oeffnungen').textContent = data.mails_geoeffnet || 0;
+    document.getElementById('stat-abmeldungen').textContent = data.abmeldungen || 0;
+}).catch(() => {});
+
+// Heute-Zähler aus Versand-Log
+function ladeLog() {
+    fetch('/api/einstellungen/versand-log?limit=50').then(r => r.json()).then(logs => {
+        const heute = new Date().toISOString().slice(0, 10);
+        const heuteCount = logs.filter(l => l.gesendet_am && l.gesendet_am.startsWith(heute)).length;
+        document.getElementById('stat-heute').textContent = heuteCount;
+
+        const anzeige = logs.slice(0, 20);
+        document.getElementById('log-count').textContent = `(letzte ${anzeige.length} von ${logs.length})`;
+
+        if (anzeige.length === 0) {
+            document.getElementById('log-container').innerHTML = '<p style="color:#888;">Noch keine Mails gesendet.</p>';
+            return;
+        }
+
+        let html = `<table>
+            <thead><tr>
+                <th>#</th>
+                <th>Firma</th>
+                <th>E-Mail</th>
+                <th>Stufe</th>
+                <th>Gesendet</th>
+                <th>Geöffnet</th>
+            </tr></thead><tbody>`;
+
+        for (const l of anzeige) {
+            const gesendet = l.gesendet_am ? new Date(l.gesendet_am).toLocaleString('de-DE') : '—';
+            const geoeffnet = l.geoeffnet_am
+                ? `<span style="color:#155724;">✓ ${new Date(l.geoeffnet_am).toLocaleString('de-DE')}</span>`
+                : '<span style="color:#aaa;">—</span>';
+            html += `<tr>
+                <td>${l.id}</td>
+                <td>${escHtml(l.firmenname || '—')}</td>
+                <td>${escHtml(l.email || '—')}</td>
+                <td><span style="background:#e9ecef; padding:1px 6px; border-radius:3px; font-size:12px;">Stufe ${l.stufe}</span></td>
+                <td style="white-space:nowrap;">${gesendet}</td>
+                <td style="white-space:nowrap;">${geoeffnet}</td>
+            </tr>`;
+        }
+        html += '</tbody></table>';
+        document.getElementById('log-container').innerHTML = html;
+    }).catch(e => {
+        document.getElementById('log-container').innerHTML = '<p style="color:red;">Fehler beim Laden des Versand-Logs.</p>';
+    });
+}
+
+function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// SMTP Quick-Test (mit gespeicherter Config, kein Passwort-Input)
+function testSmtpSchnell() {
+    const badge = document.getElementById('smtp-status-text');
+    badge.innerHTML = '<span class="badge-warn">Prüfe...</span>';
+
+    // Config laden und sofort testen (Passwort muss in DB sein)
+    fetch('/api/einstellungen/smtp').then(r => r.json()).then(cfg => {
+        if (!cfg.smtp_password_gesetzt) {
+            badge.innerHTML = '<span class="badge-fehler">Kein Passwort gespeichert</span> — <a href="/einstellungen">Einstellungen</a>';
+            return;
+        }
+        // Für den Test brauchen wir das echte Passwort — Info-Hinweis
+        badge.innerHTML = '<span class="badge-warn">Passwort gespeichert</span> — Test mit gespeichertem Passwort nicht direkt möglich. <a href="/einstellungen">Einstellungen öffnen</a>';
+    });
+}
+
+// SMTP-Status beim Laden prüfen
+fetch('/api/einstellungen/smtp').then(r => r.json()).then(cfg => {
+    const badge = document.getElementById('smtp-status-text');
+    if (cfg.smtp_password_gesetzt) {
+        badge.innerHTML = `<span class="badge-ok">Config gesetzt</span> <small style="color:#666;">${cfg.smtp_user || '—'}</small>`;
+    } else if (cfg.smtp_user) {
+        badge.innerHTML = `<span class="badge-warn">Kein Passwort</span> <small style="color:#666;">${cfg.smtp_user}</small>`;
+    } else {
+        badge.innerHTML = `<span class="badge-fehler">Nicht konfiguriert</span> <a href="/einstellungen">→ Einstellungen</a>`;
+    }
+}).catch(() => {
+    document.getElementById('smtp-status-text').innerHTML = '<span class="badge-fehler">Fehler</span>';
+});
+
+ladeLog();
+</script>
+{% endblock %}
