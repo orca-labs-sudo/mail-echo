@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends
 from fastapi.responses import Response, HTMLResponse
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import Lead, VersandLog
+from app.models import VersandLog, Abmeldung
 import datetime
 
 router = APIRouter()
@@ -15,17 +15,19 @@ def track_open(uuid: str, db: Session = Depends(get_db)):
     if log and not log.geoeffnet_am:
         log.geoeffnet_am = datetime.datetime.now()
         db.commit()
-    
     return Response(content=PIXEL, media_type="image/gif")
 
-@router.get("/unsubscribe/{lead_id}")
-def unsubscribe(lead_id: int, db: Session = Depends(get_db)):
-    lead = db.query(Lead).filter(Lead.id == lead_id).first()
-    if lead:
-        lead.status = "abgemeldet"
-        lead.abgemeldet_am = datetime.datetime.now()
-        db.commit()
-        
+@router.get("/unsubscribe/{tracking_uuid}")
+def unsubscribe(tracking_uuid: str, db: Session = Depends(get_db)):
+    log = db.query(VersandLog).filter(VersandLog.tracking_uuid == tracking_uuid).first()
+
+    if log:
+        exists = db.query(Abmeldung).filter(Abmeldung.email == log.email).first()
+        if not exists:
+            abmeldung = Abmeldung(email=log.email)
+            db.add(abmeldung)
+            db.commit()
+
     html = """
     <html><body>
     <h2>Abmeldung erfolgreich</h2>

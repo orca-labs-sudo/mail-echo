@@ -1,4 +1,4 @@
-from app.models import Lead, MailTemplate
+from app.models import MailTemplate
 from app.config import BASE_URL
 from jinja2 import Template
 
@@ -19,18 +19,18 @@ HTML_WRAPPER = """
 </html>
 """
 
-def render_template(template: MailTemplate, lead: Lead, tracking_uuid: str) -> str:
+def render_template(template: MailTemplate, email: str, firmenname: str, ansprechpartner: str, tracking_uuid: str) -> str:
     text = template.html_body
-    
-    firma = lead.firmenname if lead.firmenname else "Unternehmen"
-    ansprechpartner = lead.ansprechpartner if lead.ansprechpartner else "Damen und Herren"
-    
+
+    firma = firmenname if firmenname else "Unternehmen"
+    ap = ansprechpartner if ansprechpartner else "Damen und Herren"
+
     text = text.replace("[FIRMA]", firma)
-    text = text.replace("[ANSPRECHPARTNER]", ansprechpartner)
-    
+    text = text.replace("[ANSPRECHPARTNER]", ap)
+
     pixel_url = f"{BASE_URL}/track/{tracking_uuid}/open.gif"
-    unsub_url = f"{BASE_URL}/unsubscribe/{lead.id}" 
-    
+    unsub_url = f"{BASE_URL}/unsubscribe/{tracking_uuid}"
+
     jinja_template = Template(HTML_WRAPPER)
     return jinja_template.render(
         content=text,
@@ -39,8 +39,4 @@ def render_template(template: MailTemplate, lead: Lead, tracking_uuid: str) -> s
     )
 
 def render_preview(template: MailTemplate) -> str:
-    class DummyLead:
-        firmenname = "Mustermann GmbH"
-        ansprechpartner = "Hr. Müller"
-        id = 0
-    return render_template(template, DummyLead(), "preview-uuid")
+    return render_template(template, "vorschau@beispiel.de", "Mustermann GmbH", "Hr. Müller", "preview-uuid")

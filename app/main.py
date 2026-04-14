@@ -2,20 +2,24 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from app.database import engine, Base
-from app.routers import leads, templates, mailing, tracking, posteingang, stats
+from app.routers import templates, mailing, tracking, posteingang, stats, abmeldungen
 from app.config import DASHBOARD_USER, DASHBOARD_PASSWORD
 import secrets
 
 Base.metadata.create_all(bind=engine)
 
-# Migration: neue Spalten zu bestehenden Tabellen hinzufügen
+# Migrationen: neue Spalten/Tabellen zu bestehender DB hinzufügen
 with engine.connect() as conn:
     from sqlalchemy import text
-    try:
-        conn.execute(text("ALTER TABLE leads ADD COLUMN abmeldung_verarbeitet BOOLEAN DEFAULT 0"))
-        conn.commit()
-    except Exception:
-        pass  # Spalte existiert bereits
+    for stmt in [
+        "ALTER TABLE versand_log ADD COLUMN email TEXT",
+        "ALTER TABLE versand_log ADD COLUMN firmenname TEXT",
+    ]:
+        try:
+            conn.execute(text(stmt))
+            conn.commit()
+        except Exception:
+            pass  # Spalte existiert bereits
 
 app = FastAPI(title="Mail-Echo Service")
 
@@ -49,20 +53,16 @@ from app.database import get_db
 app.mount("/static", StaticFiles(directory="ui/static"), name="static")
 ui = Jinja2Templates(directory="ui/templates")
 
-app.include_router(leads.router, prefix="/api/leads", tags=["leads"])
 app.include_router(templates.router, prefix="/api/templates", tags=["templates"])
 app.include_router(mailing.router, prefix="/api/mailing", tags=["mailing"])
 app.include_router(tracking.router, tags=["tracking"])
 app.include_router(posteingang.router, prefix="/api/posteingang", tags=["posteingang"])
 app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
+app.include_router(abmeldungen.router, prefix="/api/abmeldungen", tags=["abmeldungen"])
 
 @app.get("/", response_class=HTMLResponse)
 def root(request: Request, _=Depends(require_auth)):
     return ui.TemplateResponse(request, "base.html")
-
-@app.get("/leads", response_class=HTMLResponse)
-def view_leads(request: Request, _=Depends(require_auth)):
-    return ui.TemplateResponse(request, "leads.html")
 
 @app.get("/templates", response_class=HTMLResponse)
 def view_templates(request: Request, _=Depends(require_auth)):

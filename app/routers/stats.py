@@ -1,46 +1,36 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import Lead, VersandLog, Posteingang
-from sqlalchemy import func
+from app.models import VersandLog, Posteingang, Abmeldung
 
 router = APIRouter()
+
+@router.get("/")
+def get_stats(db: Session = Depends(get_db)):
+    stufe_1 = db.query(VersandLog).filter(VersandLog.stufe == 1).count()
+    stufe_2 = db.query(VersandLog).filter(VersandLog.stufe == 2).count()
+    stufe_3 = db.query(VersandLog).filter(VersandLog.stufe == 3).count()
+    geoeffnet = db.query(VersandLog).filter(VersandLog.geoeffnet_am.isnot(None)).count()
+    abmeldungen = db.query(Abmeldung).count()
+    antworten = db.query(Posteingang).count()
+
+    return {
+        "mails_versendet": {"stufe_1": stufe_1, "stufe_2": stufe_2, "stufe_3": stufe_3},
+        "mails_geoeffnet": geoeffnet,
+        "abmeldungen": abmeldungen,
+        "antworten": antworten,
+    }
 
 @router.get("/offnungen")
 def get_offnungen(db: Session = Depends(get_db)):
     logs = db.query(VersandLog).filter(VersandLog.geoeffnet_am.isnot(None)).all()
-    result = []
-    for log in logs:
-        lead = db.query(Lead).filter(Lead.id == log.lead_id).first()
-        result.append({
-            "lead_id": log.lead_id,
-            "firmenname": lead.firmenname if lead else None,
-            "email": lead.email if lead else None,
+    return [
+        {
+            "email": log.email,
+            "firmenname": log.firmenname,
             "stufe": log.stufe,
             "gesendet_am": log.gesendet_am.isoformat() if log.gesendet_am else None,
             "geoeffnet_am": log.geoeffnet_am.isoformat() if log.geoeffnet_am else None,
-        })
-    return result
-
-@router.get("/")
-def get_stats(db: Session = Depends(get_db)):
-    total_leads = db.query(Lead).count()
-    mail_1 = db.query(Lead).filter(Lead.mail_1_gesendet_am.isnot(None)).count()
-    mail_2 = db.query(Lead).filter(Lead.mail_2_gesendet_am.isnot(None)).count()
-    mail_3 = db.query(Lead).filter(Lead.mail_3_gesendet_am.isnot(None)).count()
-    
-    opened = db.query(VersandLog).filter(VersandLog.geoeffnet_am.isnot(None)).count()
-    
-    status_counts = db.query(Lead.status, func.count(Lead.id)).group_by(Lead.status).all()
-    stats_dict = {s: c for s, c in status_counts}
-    
-    return {
-        "gesamt_leads": total_leads,
-        "mails_versendet": {
-            "stufe_1": mail_1,
-            "stufe_2": mail_2,
-            "stufe_3": mail_3
-        },
-        "mails_geoeffnet": opened,
-        "status_verteilung": stats_dict
-    }
+        }
+        for log in logs
+    ]

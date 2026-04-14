@@ -1,34 +1,23 @@
 from mcp.server.fastmcp import FastMCP
-from app.services.sequenz_service import berechne_faellige_leads
-from app.database import SessionLocal
 import requests
-from app.config import SECRET_KEY
 import os
 
 mcp = FastMCP("Mail-Echo", host="0.0.0.0", port=8002)
 
-# Interne Kommunikation auf den FastAPI Server im Docker-Netzwerk
-INTERNAL_API_URL = "http://app:8010" 
+INTERNAL_API_URL = "http://app:8010"
 if os.getenv("IS_LOCAL") == "1":
     INTERNAL_API_URL = "http://localhost:8010"
 
-def get_db_session():
-    db = SessionLocal()
-    try:
-        return db
-    finally:
-        db.close()
 
 @mcp.tool()
-async def tagesplanung() -> dict:
-    """Zeigt fällige Mails pro Stufe (1/2/3)"""
-    db = get_db_session()
-    return berechne_faellige_leads(db)
-
-@mcp.tool()
-async def sende_batch(stufe: int, limit: int) -> dict:
-    """Sendet Batch-Mails an fällige Leads. Max 100 pro Aufruf."""
-    response = requests.post(f"{INTERNAL_API_URL}/api/mailing/batch", json={"stufe": stufe, "limit": limit})
+async def sende_mail(email: str, ansprechpartner: str, firmenname: str, stufe: int) -> dict:
+    """Sendet eine Mail an einen Lead. stufe: 1=Erstanschreiben, 2=Follow-up, 3=Letzte Nachricht."""
+    response = requests.post(f"{INTERNAL_API_URL}/api/mailing/sende", json={
+        "email": email,
+        "ansprechpartner": ansprechpartner,
+        "firmenname": firmenname,
+        "stufe": stufe
+    })
     try:
         return response.json()
     except:
@@ -45,7 +34,7 @@ async def hole_antworten() -> dict:
 
 @mcp.tool()
 async def lese_posteingang() -> list:
-    """Gibt unverarbeitete Posteingang-Einträge zurück (plain text only)"""
+    """Gibt unverarbeitete Antworten zurück (mit Firmenname und Stufe)"""
     response = requests.get(f"{INTERNAL_API_URL}/api/posteingang/")
     try:
         return response.json()
@@ -54,8 +43,11 @@ async def lese_posteingang() -> list:
 
 @mcp.tool()
 async def auswerten(mail_id: int, entscheidung: str, notiz: str) -> dict:
-    """Klassifiziert eine Antwort und aktualisiert Lead-Status"""
-    response = requests.post(f"{INTERNAL_API_URL}/api/posteingang/{mail_id}/auswerten", json={"entscheidung": entscheidung, "notiz": notiz})
+    """Klassifiziert eine Antwort im Posteingang als verarbeitet"""
+    response = requests.post(f"{INTERNAL_API_URL}/api/posteingang/{mail_id}/auswerten", json={
+        "entscheidung": entscheidung,
+        "notiz": notiz
+    })
     try:
         return response.json()
     except:
@@ -63,7 +55,7 @@ async def auswerten(mail_id: int, entscheidung: str, notiz: str) -> dict:
 
 @mcp.tool()
 async def kampagnen_stats() -> dict:
-    """Übersicht: gesendet, geöffnet, geantwortet, Konversionen"""
+    """Übersicht: gesendete Mails pro Stufe, Öffnungen, Abmeldungen, Antworten"""
     response = requests.get(f"{INTERNAL_API_URL}/api/stats/")
     try:
         return response.json()
@@ -82,20 +74,21 @@ async def offnungen() -> list:
 @mcp.tool()
 async def lese_abmeldungen() -> list:
     """Gibt alle Abmeldungen zurück die noch nicht in PROD nachgepflegt wurden"""
-    response = requests.get(f"{INTERNAL_API_URL}/api/leads/abmeldungen/offen")
+    response = requests.get(f"{INTERNAL_API_URL}/api/abmeldungen/offen")
     try:
         return response.json()
     except:
         return [{"error": response.text}]
 
 @mcp.tool()
-async def abmeldung_bestaetigen(lead_id: int) -> dict:
-    """Markiert eine Abmeldung als in PROD verarbeitet (nach lead_aktualisieren in Vertrieb)"""
-    response = requests.post(f"{INTERNAL_API_URL}/api/leads/{lead_id}/abmeldung-bestaetigen")
+async def abmeldung_bestaetigen(abmeldung_id: int) -> dict:
+    """Markiert eine Abmeldung als in PROD verarbeitet"""
+    response = requests.post(f"{INTERNAL_API_URL}/api/abmeldungen/{abmeldung_id}/bestaetigen")
     try:
         return response.json()
     except:
         return {"error": response.text}
+
 
 if __name__ == "__main__":
     mcp.run(transport='sse')
