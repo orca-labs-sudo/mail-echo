@@ -56,25 +56,25 @@ def hook_unterlagen(uuid: str, db: Session = Depends(get_db)):
         ).first()
 
         if template:
-            abgemeldet = db.query(Abmeldung).filter(Abmeldung.email == log.email).first()
-            if not abgemeldet:
-                tracking_uuid_neu = str(uuid_lib.uuid4())
-                html = render_template(template, log.email, log.firmenname or "", log.ansprechpartner or "", tracking_uuid_neu)
-                try:
-                    msg_id = send_email(log.email, template.betreff, html)
-                    neuer_log = VersandLog(
-                        email=log.email,
-                        firmenname=log.firmenname,
-                        ansprechpartner=log.ansprechpartner,
-                        template_id=template.id,
-                        stufe=2,
-                        tracking_uuid=tracking_uuid_neu,
-                        smtp_message_id=msg_id,
-                    )
-                    db.add(neuer_log)
-                    anfrage.stufe_2_gesendet = True
-                except Exception:
-                    pass
+            # Kein Abmelde-Check: Lead hat aktiv auf den Unterlagen-Link geklickt
+            # → aktive Zustimmung, Versand ist unabhängig vom Abmeldestatus erlaubt
+            tracking_uuid_neu = str(uuid_lib.uuid4())
+            html = render_template(template, log.email, log.firmenname or "", log.ansprechpartner or "", tracking_uuid_neu)
+            try:
+                msg_id = send_email(log.email, template.betreff, html)
+                neuer_log = VersandLog(
+                    email=log.email,
+                    firmenname=log.firmenname,
+                    ansprechpartner=log.ansprechpartner,
+                    template_id=template.id,
+                    stufe=2,
+                    tracking_uuid=tracking_uuid_neu,
+                    smtp_message_id=msg_id,
+                )
+                db.add(neuer_log)
+                anfrage.stufe_2_gesendet = True
+            except Exception:
+                pass
 
         db.commit()
 
