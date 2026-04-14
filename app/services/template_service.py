@@ -27,10 +27,18 @@ def render_template(template: MailTemplate, email: str, firmenname: str, ansprec
 
     text = text.replace("[FIRMA]", firma)
     text = text.replace("[ANSPRECHPARTNER]", ap)
+    text = text.replace("[TRACKING_UUID]", tracking_uuid)
 
     pixel_url = f"{BASE_URL}/track/{tracking_uuid}/open.gif"
     unsub_url = f"{BASE_URL}/hook/abmelden?uuid={tracking_uuid}"
 
+    # Vollständiges HTML-Dokument: Pixel vor </body> einfügen, kein Wrapper
+    if "</body>" in text.lower():
+        pixel_tag = f'<img src="{pixel_url}" width="1" height="1" alt="" style="display:none;" />'
+        text = text.replace("</body>", f"{pixel_tag}\n</body>")
+        return text
+
+    # HTML-Fragment: in Wrapper einbetten
     jinja_template = Template(HTML_WRAPPER)
     return jinja_template.render(
         content=text,
