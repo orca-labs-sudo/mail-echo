@@ -72,6 +72,24 @@ async def offnungen() -> list:
         return [{"error": response.text}]
 
 @mcp.tool()
+async def lese_unterlagen_anfragen() -> list:
+    """Gibt alle Unterlagen-Anfragen zurück die noch nicht in PROD verarbeitet wurden"""
+    response = requests.get(f"{INTERNAL_API_URL}/api/hooks/unterlagen/offen")
+    try:
+        return response.json()
+    except:
+        return [{"error": response.text}]
+
+@mcp.tool()
+async def lese_interesse_klicks() -> list:
+    """Gibt alle Interesse-Klicks zurück die noch nicht in PROD verarbeitet wurden"""
+    response = requests.get(f"{INTERNAL_API_URL}/api/hooks/interesse/offen")
+    try:
+        return response.json()
+    except:
+        return [{"error": response.text}]
+
+@mcp.tool()
 async def lese_abmeldungen() -> list:
     """Gibt alle Abmeldungen zurück die noch nicht in PROD nachgepflegt wurden"""
     response = requests.get(f"{INTERNAL_API_URL}/api/abmeldungen/offen")

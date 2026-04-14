@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from app.database import engine, Base
-from app.routers import templates, mailing, tracking, posteingang, stats, abmeldungen
+from app.routers import templates, mailing, tracking, posteingang, stats, abmeldungen, hooks, hooks_api
 from app.config import DASHBOARD_USER, DASHBOARD_PASSWORD
 import secrets
 
@@ -14,6 +14,7 @@ with engine.connect() as conn:
     for stmt in [
         "ALTER TABLE versand_log ADD COLUMN email TEXT",
         "ALTER TABLE versand_log ADD COLUMN firmenname TEXT",
+        "ALTER TABLE versand_log ADD COLUMN ansprechpartner TEXT",
     ]:
         try:
             conn.execute(text(stmt))
@@ -59,6 +60,8 @@ app.include_router(tracking.router, tags=["tracking"])
 app.include_router(posteingang.router, prefix="/api/posteingang", tags=["posteingang"])
 app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
 app.include_router(abmeldungen.router, prefix="/api/abmeldungen", tags=["abmeldungen"])
+app.include_router(hooks.router, prefix="/hook", tags=["hooks-public"])
+app.include_router(hooks_api.router, prefix="/api/hooks", tags=["hooks-api"])
 
 @app.get("/", response_class=HTMLResponse)
 def root(request: Request, _=Depends(require_auth)):

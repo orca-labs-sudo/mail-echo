@@ -20,6 +20,7 @@ class VersandLog(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     email = Column(String, nullable=False, index=True)
     firmenname = Column(String)
+    ansprechpartner = Column(String)
     template_id = Column(Integer, ForeignKey("mail_templates.id"))
     stufe = Column(Integer)
     tracking_uuid = Column(String, unique=True, nullable=False)
@@ -47,4 +48,26 @@ class Abmeldung(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     email = Column(String, unique=True, nullable=False, index=True)
     abgemeldet_am = Column(DateTime, default=func.now())
+    verarbeitet = Column(Boolean, default=False)
+
+class UnterlagenAnfrage(Base):
+    __tablename__ = "unterlagen_anfragen"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    email = Column(String, nullable=False)
+    firmenname = Column(String)
+    ansprechpartner = Column(String)
+    tracking_uuid = Column(String, nullable=False)
+    stufe_2_gesendet = Column(Boolean, default=False)
+    angeklickt_am = Column(DateTime, default=func.now())
+    verarbeitet = Column(Boolean, default=False)
+
+class InteresseKlick(Base):
+    __tablename__ = "interesse_klicks"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    email = Column(String, nullable=False)
+    firmenname = Column(String)
+    tracking_uuid = Column(String, nullable=False)
+    angeklickt_am = Column(DateTime, default=func.now())
     verarbeitet = Column(Boolean, default=False)

@@ -29,7 +29,7 @@ def render_template(template: MailTemplate, email: str, firmenname: str, ansprec
     text = text.replace("[ANSPRECHPARTNER]", ap)
 
     pixel_url = f"{BASE_URL}/track/{tracking_uuid}/open.gif"
-    unsub_url = f"{BASE_URL}/unsubscribe/{tracking_uuid}"
+    unsub_url = f"{BASE_URL}/hook/abmelden?uuid={tracking_uuid}"
 
     jinja_template = Template(HTML_WRAPPER)
     return jinja_template.render(

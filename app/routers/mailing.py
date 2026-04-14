@@ -40,6 +40,7 @@ def sende_mail(request: SendeRequest, db: Session = Depends(get_db)):
     log = VersandLog(
         email=request.email,
         firmenname=request.firmenname,
+        ansprechpartner=request.ansprechpartner,
         template_id=template.id,
         stufe=request.stufe,
         tracking_uuid=tracking_uuid,
