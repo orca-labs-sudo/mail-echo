@@ -10,13 +10,17 @@ if os.getenv("IS_LOCAL") == "1":
 
 
 @mcp.tool()
-async def sende_mail(email: str, ansprechpartner: str, firmenname: str, stufe: int) -> dict:
-    """Sendet eine Mail an einen Lead. stufe: 1=Erstanschreiben, 2=Follow-up, 3=Letzte Nachricht."""
+async def sende_mail(email: str, ansprechpartner: str, firmenname: str, stufe: int, bypass_abmeldung: bool = False) -> dict:
+    """
+    Sendet eine Mail an einen Lead. stufe: 1=Erstanschreiben, 2=Follow-up, 3=Letzte Nachricht.
+    bypass_abmeldung=True nur verwenden wenn der Lead aktiv zugestimmt hat (z.B. Unterlagen angefordert).
+    """
     response = requests.post(f"{INTERNAL_API_URL}/api/mailing/sende", json={
         "email": email,
         "ansprechpartner": ansprechpartner,
         "firmenname": firmenname,
-        "stufe": stufe
+        "stufe": stufe,
+        "bypass_abmeldung": bypass_abmeldung,
     })
     try:
         return response.json()

@@ -14,12 +14,14 @@ class SendeRequest(BaseModel):
     ansprechpartner: str
     firmenname: str
     stufe: int
+    bypass_abmeldung: bool = False
 
 @router.post("/sende")
 def sende_mail(request: SendeRequest, db: Session = Depends(get_db)):
-    # Abgemeldet-Prüfung
-    if db.query(Abmeldung).filter(Abmeldung.email == request.email).first():
-        raise HTTPException(status_code=400, detail="E-Mail-Adresse ist abgemeldet")
+    # Abgemeldet-Prüfung — wird übersprungen wenn Lead aktiv zugestimmt hat (z.B. Unterlagen-Klick)
+    if not request.bypass_abmeldung:
+        if db.query(Abmeldung).filter(Abmeldung.email == request.email).first():
+            raise HTTPException(status_code=400, detail="E-Mail-Adresse ist abgemeldet")
 
     template = db.query(MailTemplate).filter(
         MailTemplate.stufe == request.stufe,
