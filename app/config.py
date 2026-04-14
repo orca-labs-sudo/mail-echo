@@ -20,3 +20,6 @@ MCP_PORT = int(os.getenv("MCP_PORT", 8002))
 APP_PORT = int(os.getenv("APP_PORT", 8010))
 
 DATABASE_PATH = os.getenv("DATABASE_PATH", "./mail_echo.db")
+
+DASHBOARD_USER = os.getenv("DASHBOARD_USER", "admin")
+DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "")
