@@ -13,14 +13,19 @@ import uuid as uuid_lib
 
 router = APIRouter()
 
-INTERESSE_REDIRECT = "https://awr24.de"
+HOMEPAGE_REDIRECT = "https://awr24.de"
+PREVIEW_UUID = "preview-uuid"
 
 
 @router.get("/unterlagen")
 def hook_unterlagen(uuid: str, db: Session = Depends(get_db)):
+    # Preview-Modus: kein DB-Zugriff, direkt weiterleiten
+    if uuid == PREVIEW_UUID:
+        return RedirectResponse(url=HOMEPAGE_REDIRECT)
+
     log = db.query(VersandLog).filter(VersandLog.tracking_uuid == uuid).first()
     if not log:
-        return HTMLResponse("<h2>Link ungültig</h2>", status_code=404)
+        return RedirectResponse(url=HOMEPAGE_REDIRECT)
 
     exists = db.query(UnterlagenAnfrage).filter(UnterlagenAnfrage.tracking_uuid == uuid).first()
     if not exists:
@@ -60,16 +65,14 @@ def hook_unterlagen(uuid: str, db: Session = Depends(get_db)):
 
         db.commit()
 
-    return HTMLResponse("""
-    <html><body>
-    <h2>Vielen Dank!</h2>
-    <p>Ihre Anfrage wurde aufgenommen. Sie erhalten in Kürze weitere Informationen.</p>
-    </body></html>
-    """)
+    return RedirectResponse(url=HOMEPAGE_REDIRECT)
 
 
 @router.get("/interesse")
 def hook_interesse(uuid: str, db: Session = Depends(get_db)):
+    if uuid == PREVIEW_UUID:
+        return RedirectResponse(url=HOMEPAGE_REDIRECT)
+
     log = db.query(VersandLog).filter(VersandLog.tracking_uuid == uuid).first()
 
     exists = db.query(InteresseKlick).filter(InteresseKlick.tracking_uuid == uuid).first()
@@ -78,7 +81,7 @@ def hook_interesse(uuid: str, db: Session = Depends(get_db)):
         db.add(klick)
         db.commit()
 
-    return RedirectResponse(url=INTERESSE_REDIRECT)
+    return RedirectResponse(url=HOMEPAGE_REDIRECT)
 
 
 @router.get("/abmelden")
