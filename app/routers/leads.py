@@ -91,3 +91,29 @@ def update_lead(id: int, lead_update: LeadUpdate, db: Session = Depends(get_db))
         lead.status = lead_update.status
         db.commit()
     return lead
+
+@router.get("/abmeldungen/offen")
+def get_offene_abmeldungen(db: Session = Depends(get_db)):
+    leads = db.query(Lead).filter(
+        Lead.status == "abgemeldet",
+        Lead.abmeldung_verarbeitet == False
+    ).all()
+    return [
+        {
+            "lead_id": l.id,
+            "firmenname": l.firmenname,
+            "email": l.email,
+            "ansprechpartner": l.ansprechpartner,
+            "abgemeldet_am": l.abgemeldet_am.isoformat() if l.abgemeldet_am else None,
+        }
+        for l in leads
+    ]
+
+@router.post("/{id}/abmeldung-bestaetigen")
+def abmeldung_bestaetigen(id: int, db: Session = Depends(get_db)):
+    lead = db.query(Lead).filter(Lead.id == id).first()
+    if not lead:
+        return {"status": "not found"}
+    lead.abmeldung_verarbeitet = True
+    db.commit()
+    return {"status": "ok", "lead_id": id}

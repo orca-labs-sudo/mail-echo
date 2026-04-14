@@ -6,6 +6,22 @@ from sqlalchemy import func
 
 router = APIRouter()
 
+@router.get("/offnungen")
+def get_offnungen(db: Session = Depends(get_db)):
+    logs = db.query(VersandLog).filter(VersandLog.geoeffnet_am.isnot(None)).all()
+    result = []
+    for log in logs:
+        lead = db.query(Lead).filter(Lead.id == log.lead_id).first()
+        result.append({
+            "lead_id": log.lead_id,
+            "firmenname": lead.firmenname if lead else None,
+            "email": lead.email if lead else None,
+            "stufe": log.stufe,
+            "gesendet_am": log.gesendet_am.isoformat() if log.gesendet_am else None,
+            "geoeffnet_am": log.geoeffnet_am.isoformat() if log.geoeffnet_am else None,
+        })
+    return result
+
 @router.get("/")
 def get_stats(db: Session = Depends(get_db)):
     total_leads = db.query(Lead).count()

@@ -70,8 +70,32 @@ async def kampagnen_stats() -> dict:
     except:
         return {"error": response.text}
 
+@mcp.tool()
+async def offnungen() -> list:
+    """Zeigt alle Leads die eine Mail geöffnet haben (mit Zeitstempel und Stufe)"""
+    response = requests.get(f"{INTERNAL_API_URL}/api/stats/offnungen")
+    try:
+        return response.json()
+    except:
+        return [{"error": response.text}]
+
+@mcp.tool()
+async def lese_abmeldungen() -> list:
+    """Gibt alle Abmeldungen zurück die noch nicht in PROD nachgepflegt wurden"""
+    response = requests.get(f"{INTERNAL_API_URL}/api/leads/abmeldungen/offen")
+    try:
+        return response.json()
+    except:
+        return [{"error": response.text}]
+
+@mcp.tool()
+async def abmeldung_bestaetigen(lead_id: int) -> dict:
+    """Markiert eine Abmeldung als in PROD verarbeitet (nach lead_aktualisieren in Vertrieb)"""
+    response = requests.post(f"{INTERNAL_API_URL}/api/leads/{lead_id}/abmeldung-bestaetigen")
+    try:
+        return response.json()
+    except:
+        return {"error": response.text}
+
 if __name__ == "__main__":
-    # Standard security measure to ensure valid tokens
-    # Typically, MCP servers can enforce Auth via proxy or dependencies. 
-    # NGINX might be missing the proxy_pass auth, but we'll run SSE here.
     mcp.run(transport='sse')

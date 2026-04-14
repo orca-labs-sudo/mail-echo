@@ -8,6 +8,15 @@ import secrets
 
 Base.metadata.create_all(bind=engine)
 
+# Migration: neue Spalten zu bestehenden Tabellen hinzufügen
+with engine.connect() as conn:
+    from sqlalchemy import text
+    try:
+        conn.execute(text("ALTER TABLE leads ADD COLUMN abmeldung_verarbeitet BOOLEAN DEFAULT 0"))
+        conn.commit()
+    except Exception:
+        pass  # Spalte existiert bereits
+
 app = FastAPI(title="Mail-Echo Service")
 
 app.add_middleware(

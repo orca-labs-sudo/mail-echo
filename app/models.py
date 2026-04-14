@@ -16,6 +16,7 @@ class Lead(Base):
     mail_2_gesendet_am = Column(DateTime)
     mail_3_gesendet_am = Column(DateTime)
     abgemeldet_am = Column(DateTime)
+    abmeldung_verarbeitet = Column(Boolean, default=False)
     erstellt_am = Column(DateTime, default=func.now())
 
 class MailTemplate(Base):
