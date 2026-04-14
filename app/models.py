@@ -73,6 +73,20 @@ class InteresseKlick(Base):
     verarbeitet = Column(Boolean, default=False)
 
 
+class HookKlick(Base):
+    """Zentrale Tabelle für alle Hook-Klicks aus Mails (unterlagen / interesse / abmelden)."""
+    __tablename__ = "hook_klicks"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    tracking_uuid = Column(String, nullable=False, index=True)
+    hook_typ = Column(String, nullable=False)  # unterlagen | interesse | abmelden
+    email = Column(String, nullable=False)
+    firmenname = Column(String)
+    ansprechpartner = Column(String)
+    geklickt_am = Column(DateTime, default=func.now())
+    verarbeitet = Column(Boolean, default=False)
+
+
 class KonfigurationEintrag(Base):
     __tablename__ = "konfiguration"
 

@@ -73,7 +73,12 @@ async def offnungen() -> list:
 
 @mcp.tool()
 async def lese_unterlagen_anfragen() -> list:
-    """Gibt alle Unterlagen-Anfragen zurück die noch nicht in PROD verarbeitet wurden"""
+    """
+    Gibt alle Unterlagen-Anfragen zurück die noch nicht in PROD verarbeitet wurden.
+    Felder: id, tracking_uuid, email, firmenname, ansprechpartner, geklickt_am.
+    Mit email+firmenname den Lead in PROD per leads_liste() oder lead_lesen() identifizieren.
+    Nach Verarbeitung: unterlagen_bestaetigen(id) aufrufen.
+    """
     response = requests.get(f"{INTERNAL_API_URL}/api/hooks/unterlagen/offen")
     try:
         return response.json()
@@ -81,8 +86,22 @@ async def lese_unterlagen_anfragen() -> list:
         return [{"error": response.text}]
 
 @mcp.tool()
+async def unterlagen_bestaetigen(hook_id: int) -> dict:
+    """Markiert eine Unterlagen-Anfrage als in PROD verarbeitet (hook_id aus lese_unterlagen_anfragen)"""
+    response = requests.post(f"{INTERNAL_API_URL}/api/hooks/unterlagen/{hook_id}/bestaetigen")
+    try:
+        return response.json()
+    except:
+        return {"error": response.text}
+
+@mcp.tool()
 async def lese_interesse_klicks() -> list:
-    """Gibt alle Interesse-Klicks zurück die noch nicht in PROD verarbeitet wurden"""
+    """
+    Gibt alle Interesse-Klicks zurück die noch nicht in PROD verarbeitet wurden.
+    Felder: id, tracking_uuid, email, firmenname, ansprechpartner, geklickt_am.
+    Mit email+firmenname den Lead in PROD per leads_liste() oder lead_lesen() identifizieren.
+    Nach Verarbeitung: interesse_bestaetigen(id) aufrufen.
+    """
     response = requests.get(f"{INTERNAL_API_URL}/api/hooks/interesse/offen")
     try:
         return response.json()
@@ -90,9 +109,22 @@ async def lese_interesse_klicks() -> list:
         return [{"error": response.text}]
 
 @mcp.tool()
+async def interesse_bestaetigen(hook_id: int) -> dict:
+    """Markiert einen Interesse-Klick als in PROD verarbeitet (hook_id aus lese_interesse_klicks)"""
+    response = requests.post(f"{INTERNAL_API_URL}/api/hooks/interesse/{hook_id}/bestaetigen")
+    try:
+        return response.json()
+    except:
+        return {"error": response.text}
+
+@mcp.tool()
 async def lese_abmeldungen() -> list:
-    """Gibt alle Abmeldungen zurück die noch nicht in PROD nachgepflegt wurden"""
-    response = requests.get(f"{INTERNAL_API_URL}/api/abmeldungen/offen")
+    """
+    Gibt alle Abmeldungen zurück die noch nicht in PROD nachgepflegt wurden.
+    Felder: id, tracking_uuid, email, firmenname, ansprechpartner, geklickt_am.
+    Nach Verarbeitung: abmeldung_bestaetigen(id) aufrufen.
+    """
+    response = requests.get(f"{INTERNAL_API_URL}/api/hooks/abmelden/offen")
     try:
         return response.json()
     except:
@@ -100,8 +132,8 @@ async def lese_abmeldungen() -> list:
 
 @mcp.tool()
 async def abmeldung_bestaetigen(abmeldung_id: int) -> dict:
-    """Markiert eine Abmeldung als in PROD verarbeitet"""
-    response = requests.post(f"{INTERNAL_API_URL}/api/abmeldungen/{abmeldung_id}/bestaetigen")
+    """Markiert eine Abmeldung als in PROD nachgepflegt (abmeldung_id aus lese_abmeldungen)"""
+    response = requests.post(f"{INTERNAL_API_URL}/api/hooks/abmelden/{abmeldung_id}/bestaetigen")
     try:
         return response.json()
     except:

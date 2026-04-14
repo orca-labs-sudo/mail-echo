@@ -16,6 +16,7 @@ with engine.connect() as conn:
         "ALTER TABLE versand_log ADD COLUMN firmenname TEXT",
         "ALTER TABLE versand_log ADD COLUMN ansprechpartner TEXT",
         "CREATE TABLE IF NOT EXISTS konfiguration (id INTEGER PRIMARY KEY AUTOINCREMENT, schluessel TEXT UNIQUE NOT NULL, wert TEXT, geaendert_am DATETIME DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS hook_klicks (id INTEGER PRIMARY KEY AUTOINCREMENT, tracking_uuid TEXT NOT NULL, hook_typ TEXT NOT NULL, email TEXT NOT NULL, firmenname TEXT, ansprechpartner TEXT, geklickt_am DATETIME DEFAULT CURRENT_TIMESTAMP, verarbeitet INTEGER DEFAULT 0)",
     ]:
         try:
             conn.execute(text(stmt))
