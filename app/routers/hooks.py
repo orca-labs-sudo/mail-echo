@@ -40,8 +40,8 @@ def hook_unterlagen(uuid: str, db: Session = Depends(get_db)):
             ansprechpartner=log.ansprechpartner,
         ))
 
-    exists = db.query(UnterlagenAnfrage).filter(UnterlagenAnfrage.tracking_uuid == uuid).first()
-    if not exists:
+    anfrage = db.query(UnterlagenAnfrage).filter(UnterlagenAnfrage.tracking_uuid == uuid).first()
+    if not anfrage:
         anfrage = UnterlagenAnfrage(
             email=log.email,
             firmenname=log.firmenname,
@@ -49,7 +49,10 @@ def hook_unterlagen(uuid: str, db: Session = Depends(get_db)):
             tracking_uuid=uuid,
         )
         db.add(anfrage)
+        db.flush()  # ID vergeben ohne commit
 
+    # Mail senden wenn noch nicht gesendet (auch Retry bei früherem Fehler)
+    if not anfrage.stufe_2_gesendet:
         template = db.query(MailTemplate).filter(
             MailTemplate.stufe == 2,
             MailTemplate.freigegeben == True
@@ -57,7 +60,7 @@ def hook_unterlagen(uuid: str, db: Session = Depends(get_db)):
 
         if template:
             # Kein Abmelde-Check: Lead hat aktiv auf den Unterlagen-Link geklickt
-            # → aktive Zustimmung, Versand ist unabhängig vom Abmeldestatus erlaubt
+            # → aktive Zustimmung, Versand unabhängig vom Abmeldestatus
             tracking_uuid_neu = str(uuid_lib.uuid4())
             html = render_template(template, log.email, log.firmenname or "", log.ansprechpartner or "", tracking_uuid_neu)
             try:
@@ -76,7 +79,7 @@ def hook_unterlagen(uuid: str, db: Session = Depends(get_db)):
             except Exception:
                 pass
 
-        db.commit()
+    db.commit()
 
     return RedirectResponse(url=HOMEPAGE_REDIRECT)
 
