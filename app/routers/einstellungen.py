@@ -153,19 +153,51 @@ def teste_smtp(req: SmtpTestRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/versand-log")
-def lese_versand_log(limit: int = 20, db: Session = Depends(get_db)):
-    """Letzte Versand-Log-Einträge für das Dashboard."""
+def lese_versand_log(
+    page: int = 1,
+    per_page: int = 25,
+    sort: str = "gesendet_am",
+    order: str = "desc",
+    nur_geoeffnet: bool = False,
+    db: Session = Depends(get_db),
+):
+    """Versand-Log mit Pagination und Sortierung für das Dashboard."""
     from app.models import VersandLog
-    logs = db.query(VersandLog).order_by(VersandLog.gesendet_am.desc()).limit(limit).all()
-    return [
-        {
-            "id": l.id,
-            "email": l.email,
-            "firmenname": l.firmenname,
-            "stufe": l.stufe,
-            "gesendet_am": l.gesendet_am.isoformat() if l.gesendet_am else None,
-            "geoeffnet_am": l.geoeffnet_am.isoformat() if l.geoeffnet_am else None,
-            "tracking_uuid": l.tracking_uuid,
-        }
-        for l in logs
-    ]
+    from sqlalchemy import asc, desc, nullslast
+
+    SORTIERBAR = {
+        "id": VersandLog.id,
+        "firmenname": VersandLog.firmenname,
+        "email": VersandLog.email,
+        "stufe": VersandLog.stufe,
+        "gesendet_am": VersandLog.gesendet_am,
+        "geoeffnet_am": VersandLog.geoeffnet_am,
+    }
+    sort_col = SORTIERBAR.get(sort, VersandLog.gesendet_am)
+    sort_expr = nullslast(desc(sort_col)) if order == "desc" else nullslast(asc(sort_col))
+
+    query = db.query(VersandLog)
+    if nur_geoeffnet:
+        query = query.filter(VersandLog.geoeffnet_am.isnot(None))
+
+    total = query.count()
+    offset = (page - 1) * per_page
+    logs = query.order_by(sort_expr).offset(offset).limit(per_page).all()
+
+    return {
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "pages": (total + per_page - 1) // per_page,
+        "items": [
+            {
+                "id": l.id,
+                "email": l.email,
+                "firmenname": l.firmenname,
+                "stufe": l.stufe,
+                "gesendet_am": l.gesendet_am.isoformat() if l.gesendet_am else None,
+                "geoeffnet_am": l.geoeffnet_am.isoformat() if l.geoeffnet_am else None,
+            }
+            for l in logs
+        ],
+    }

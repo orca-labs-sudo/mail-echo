@@ -44,51 +44,83 @@
 .badge-warn { background: #fff3cd; color: #856404; padding: 3px 10px; border-radius: 12px; font-size: 13px; font-weight: bold; }
 </style>
 
-<!-- Letzter Versand-Log -->
-<h3 style="margin-top:0;">Letzter Versand <span style="font-size:13px; color:#888; font-weight:normal;" id="log-count"></span></h3>
+<!-- Toolbar: Filter + Seitenauswahl -->
+<div style="display:flex; align-items:center; gap:12px; margin-bottom:10px; flex-wrap:wrap;">
+    <h3 style="margin:0;">Versand-Log <span style="font-size:13px; color:#888; font-weight:normal;" id="log-count"></span></h3>
+    <label style="margin-left:auto; font-size:13px; display:flex; align-items:center; gap:6px; cursor:pointer;">
+        <input type="checkbox" id="filter-geoeffnet" onchange="state.page=1; ladeLog()">
+        Nur Geöffnete
+    </label>
+    <select id="per-page-select" onchange="state.page=1; state.perPage=+this.value; ladeLog()" style="font-size:13px; padding:3px 6px;">
+        <option value="25">25 / Seite</option>
+        <option value="50">50 / Seite</option>
+        <option value="100">100 / Seite</option>
+    </select>
+</div>
+
 <div id="log-container">
     <p style="color:#888;">Lade Versand-Log...</p>
 </div>
 
+<!-- Pagination -->
+<div id="pagination" style="display:flex; align-items:center; gap:8px; margin-top:12px;"></div>
+
+<style>
+th.sortable { cursor:pointer; user-select:none; white-space:nowrap; }
+th.sortable:hover { background:#e9ecef; }
+th.sort-asc::after  { content:" ▲"; font-size:10px; }
+th.sort-desc::after { content:" ▼"; font-size:10px; }
+.page-btn {
+    padding: 4px 10px; border: 1px solid #ccc; border-radius: 4px;
+    background:#fff; cursor:pointer; font-size:13px;
+}
+.page-btn:disabled { color:#aaa; cursor:default; }
+.page-btn.active { background:#0d6efd; color:#fff; border-color:#0d6efd; }
+</style>
+
 <script>
-// Stats laden
-fetch('/api/stats/').then(r => r.json()).then(data => {
-    const gesamt = (data.mails_versendet?.stufe_1 || 0) + (data.mails_versendet?.stufe_2 || 0) + (data.mails_versendet?.stufe_3 || 0);
-    document.getElementById('stat-gesamt').textContent = gesamt;
-    document.getElementById('stat-oeffnungen').textContent = data.mails_geoeffnet || 0;
-    document.getElementById('stat-abmeldungen').textContent = data.abmeldungen || 0;
-}).catch(() => {});
+const state = { page: 1, perPage: 25, sort: 'gesendet_am', order: 'desc', nurGeoeffnet: false };
 
-// Heute-Zähler aus Versand-Log
+function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
 function ladeLog() {
-    fetch('/api/einstellungen/versand-log?limit=50').then(r => r.json()).then(logs => {
-        const heute = new Date().toISOString().slice(0, 10);
-        const heuteCount = logs.filter(l => l.gesendet_am && l.gesendet_am.startsWith(heute)).length;
-        document.getElementById('stat-heute').textContent = heuteCount;
+    state.nurGeoeffnet = document.getElementById('filter-geoeffnet').checked;
+    const url = `/api/einstellungen/versand-log?page=${state.page}&per_page=${state.perPage}&sort=${state.sort}&order=${state.order}&nur_geoeffnet=${state.nurGeoeffnet}`;
 
-        const anzeige = logs.slice(0, 20);
-        document.getElementById('log-count').textContent = `(letzte ${anzeige.length} von ${logs.length})`;
+    fetch(url).then(r => r.json()).then(data => {
+        const { total, page, pages, items } = data;
+        document.getElementById('log-count').textContent = `(${total} gesamt, Seite ${page} von ${pages || 1})`;
 
-        if (anzeige.length === 0) {
-            document.getElementById('log-container').innerHTML = '<p style="color:#888;">Noch keine Mails gesendet.</p>';
+        if (items.length === 0) {
+            document.getElementById('log-container').innerHTML = '<p style="color:#888;">Keine Einträge.</p>';
+            document.getElementById('pagination').innerHTML = '';
             return;
         }
 
-        let html = `<table>
-            <thead><tr>
-                <th>#</th>
-                <th>Firma</th>
-                <th>E-Mail</th>
-                <th>Stufe</th>
-                <th>Gesendet</th>
-                <th>Geöffnet</th>
-            </tr></thead><tbody>`;
+        const COLS = [
+            { key: 'id',          label: '#' },
+            { key: 'firmenname',  label: 'Firma' },
+            { key: 'email',       label: 'E-Mail' },
+            { key: 'stufe',       label: 'Stufe' },
+            { key: 'gesendet_am', label: 'Gesendet' },
+            { key: 'geoeffnet_am',label: 'Geöffnet' },
+        ];
 
-        for (const l of anzeige) {
-            const gesendet = l.gesendet_am ? new Date(l.gesendet_am).toLocaleString('de-DE') : '—';
+        let html = `<table><thead><tr>`;
+        for (const col of COLS) {
+            let cls = 'sortable';
+            if (state.sort === col.key) cls += state.order === 'desc' ? ' sort-desc' : ' sort-asc';
+            html += `<th class="${cls}" onclick="sortieren('${col.key}')">${col.label}</th>`;
+        }
+        html += `</tr></thead><tbody>`;
+
+        for (const l of items) {
+            const gesendet  = l.gesendet_am  ? new Date(l.gesendet_am).toLocaleString('de-DE')  : '—';
             const geoeffnet = l.geoeffnet_am
-                ? `<span style="color:#155724;">✓ ${new Date(l.geoeffnet_am).toLocaleString('de-DE')}</span>`
-                : '<span style="color:#aaa;">—</span>';
+                ? `<span style="color:#155724; font-weight:500;">✓ ${new Date(l.geoeffnet_am).toLocaleString('de-DE')}</span>`
+                : '<span style="color:#ccc;">—</span>';
             html += `<tr>
                 <td>${l.id}</td>
                 <td>${escHtml(l.firmenname || '—')}</td>
@@ -100,32 +132,67 @@ function ladeLog() {
         }
         html += '</tbody></table>';
         document.getElementById('log-container').innerHTML = html;
-    }).catch(e => {
-        document.getElementById('log-container').innerHTML = '<p style="color:red;">Fehler beim Laden des Versand-Logs.</p>';
-    });
-}
 
-function escHtml(str) {
-    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
+        // Pagination rendern
+        let pag = '';
+        pag += `<button class="page-btn" onclick="geheZuSeite(${page-1})" ${page<=1?'disabled':''}>‹ Zurück</button>`;
 
-// SMTP Quick-Test (mit gespeicherter Config, kein Passwort-Input)
-function testSmtpSchnell() {
-    const badge = document.getElementById('smtp-status-text');
-    badge.innerHTML = '<span class="badge-warn">Prüfe...</span>';
-
-    // Config laden und sofort testen (Passwort muss in DB sein)
-    fetch('/api/einstellungen/smtp').then(r => r.json()).then(cfg => {
-        if (!cfg.smtp_password_gesetzt) {
-            badge.innerHTML = '<span class="badge-fehler">Kein Passwort gespeichert</span> — <a href="/einstellungen">Einstellungen</a>';
-            return;
+        // Seitenzahlen: immer erste, letzte, aktuelle ±2
+        const seiten = new Set([1, pages, page-2, page-1, page, page+1, page+2].filter(s => s>=1 && s<=pages));
+        let prev = null;
+        for (const s of [...seiten].sort((a,b)=>a-b)) {
+            if (prev && s - prev > 1) pag += `<span style="padding:0 4px; color:#888;">…</span>`;
+            pag += `<button class="page-btn${s===page?' active':''}" onclick="geheZuSeite(${s})">${s}</button>`;
+            prev = s;
         }
-        // Für den Test brauchen wir das echte Passwort — Info-Hinweis
-        badge.innerHTML = '<span class="badge-warn">Passwort gespeichert</span> — Test mit gespeichertem Passwort nicht direkt möglich. <a href="/einstellungen">Einstellungen öffnen</a>';
+
+        pag += `<button class="page-btn" onclick="geheZuSeite(${page+1})" ${page>=pages?'disabled':''}>Weiter ›</button>`;
+        document.getElementById('pagination').innerHTML = pag;
+    }).catch(() => {
+        document.getElementById('log-container').innerHTML = '<p style="color:red;">Fehler beim Laden.</p>';
     });
 }
 
-// SMTP-Status beim Laden prüfen
+function sortieren(col) {
+    if (state.sort === col) {
+        state.order = state.order === 'desc' ? 'asc' : 'desc';
+    } else {
+        state.sort  = col;
+        state.order = 'desc';
+    }
+    state.page = 1;
+    ladeLog();
+}
+
+function geheZuSeite(n) {
+    state.page = n;
+    ladeLog();
+}
+
+// Stats laden
+fetch('/api/stats/').then(r => r.json()).then(data => {
+    const gesamt = (data.mails_versendet?.stufe_1 || 0) + (data.mails_versendet?.stufe_2 || 0) + (data.mails_versendet?.stufe_3 || 0);
+    document.getElementById('stat-gesamt').textContent = gesamt;
+    document.getElementById('stat-oeffnungen').textContent = data.mails_geoeffnet || 0;
+    document.getElementById('stat-abmeldungen').textContent = data.abmeldungen || 0;
+}).catch(() => {});
+
+// Heute-Zähler: eigene API-Abfrage (nur heutige, keine pagination)
+fetch('/api/einstellungen/versand-log?page=1&per_page=1&sort=gesendet_am&order=desc').then(r => r.json()).then(data => {
+    // "Heute" zählen: filter auf Server-Seite nicht nötig, wir nehmen stats
+    fetch('/api/stats/').then(r => r.json()).then(s => {
+        // Heute-Zähler via eigene Abfrage mit nur_heute wäre ideal, daher Workaround:
+        // erste Seite mit sehr großem Datum-Filter — hier einfach alle von heute via separate Abfrage
+        const heute = new Date().toISOString().slice(0, 10);
+        fetch(`/api/einstellungen/versand-log?page=1&per_page=200&sort=gesendet_am&order=desc`)
+            .then(r => r.json()).then(d => {
+                const n = d.items.filter(l => l.gesendet_am && l.gesendet_am.startsWith(heute)).length;
+                document.getElementById('stat-heute').textContent = n < 200 ? n : n + '+';
+            });
+    });
+}).catch(() => {});
+
+// SMTP-Status
 fetch('/api/einstellungen/smtp').then(r => r.json()).then(cfg => {
     const badge = document.getElementById('smtp-status-text');
     if (cfg.smtp_password_gesetzt) {
@@ -138,6 +205,10 @@ fetch('/api/einstellungen/smtp').then(r => r.json()).then(cfg => {
 }).catch(() => {
     document.getElementById('smtp-status-text').innerHTML = '<span class="badge-fehler">Fehler</span>';
 });
+
+function testSmtpSchnell() {
+    document.getElementById('smtp-status-text').innerHTML = '<span class="badge-warn">Passwort gespeichert</span> — <a href="/einstellungen">Einstellungen öffnen</a>';
+}
 
 ladeLog();
 </script>
