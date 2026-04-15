@@ -21,7 +21,10 @@ _EMAIL_RE = re.compile(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}')
 
 
 def _ist_bounce(absender: str, betreff: str) -> bool:
-    return bool(_BOUNCE_ABSENDER.search(absender) or _BOUNCE_BETREFF.search(betreff))
+    return bool(
+        _BOUNCE_ABSENDER.search(absender or "") or
+        _BOUNCE_BETREFF.search(betreff or "")
+    )
 
 
 def _extrahiere_bounce_email(plain_text: str, in_reply_to: str, db: Session) -> tuple:
