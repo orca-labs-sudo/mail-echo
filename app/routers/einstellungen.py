@@ -159,9 +159,11 @@ def lese_versand_log(
     sort: str = "gesendet_am",
     order: str = "desc",
     nur_geoeffnet: bool = False,
+    nur_heute: bool = False,
     db: Session = Depends(get_db),
 ):
     """Versand-Log mit Pagination und Sortierung für das Dashboard."""
+    import datetime
     from app.models import VersandLog
     from sqlalchemy import asc, desc, nullslast
 
@@ -179,6 +181,9 @@ def lese_versand_log(
     query = db.query(VersandLog)
     if nur_geoeffnet:
         query = query.filter(VersandLog.geoeffnet_am.isnot(None))
+    if nur_heute:
+        heute = datetime.date.today()
+        query = query.filter(VersandLog.gesendet_am >= datetime.datetime(heute.year, heute.month, heute.day))
 
     total = query.count()
     offset = (page - 1) * per_page

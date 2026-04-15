@@ -4,15 +4,15 @@
 
 <!-- Schnell-Stats -->
 <div id="stats-cards" style="display:flex; gap:16px; margin-bottom:24px; flex-wrap:wrap;">
-    <div class="card" style="flex:1; min-width:140px;">
+    <div class="card card-filter" id="kachel-gesamt" onclick="kachelFilter('alle')" style="flex:1; min-width:140px;">
         <div class="card-label">Mails gesamt</div>
         <div class="card-value" id="stat-gesamt">—</div>
     </div>
-    <div class="card" style="flex:1; min-width:140px;">
+    <div class="card card-filter" id="kachel-heute" onclick="kachelFilter('heute')" style="flex:1; min-width:140px;">
         <div class="card-label">Heute gesendet</div>
         <div class="card-value" id="stat-heute">—</div>
     </div>
-    <div class="card" style="flex:1; min-width:140px;">
+    <div class="card card-filter" id="kachel-oeffnungen" onclick="kachelFilter('geoeffnet')" style="flex:1; min-width:140px;">
         <div class="card-label">Öffnungen</div>
         <div class="card-value" id="stat-oeffnungen">—</div>
     </div>
@@ -37,6 +37,9 @@
     padding: 16px 20px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.06);
 }
+.card-filter { cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
+.card-filter:hover { border-color: #0d6efd; box-shadow: 0 0 0 2px rgba(13,110,253,0.15); }
+.card-filter.aktiv { border-color: #0d6efd; box-shadow: 0 0 0 2px rgba(13,110,253,0.25); background: #f0f6ff; }
 .card-label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
 .card-value { font-size: 28px; font-weight: bold; color: #333; }
 .badge-ok { background: #d4edda; color: #155724; padding: 3px 10px; border-radius: 12px; font-size: 13px; font-weight: bold; }
@@ -44,14 +47,11 @@
 .badge-warn { background: #fff3cd; color: #856404; padding: 3px 10px; border-radius: 12px; font-size: 13px; font-weight: bold; }
 </style>
 
-<!-- Toolbar: Filter + Seitenauswahl -->
+<!-- Toolbar: Filter-Label + Seitenauswahl -->
 <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px; flex-wrap:wrap;">
     <h3 style="margin:0;">Versand-Log <span style="font-size:13px; color:#888; font-weight:normal;" id="log-count"></span></h3>
-    <label style="margin-left:auto; font-size:13px; display:flex; align-items:center; gap:6px; cursor:pointer;">
-        <input type="checkbox" id="filter-geoeffnet" onchange="state.page=1; ladeLog()">
-        Nur Geöffnete
-    </label>
-    <select id="per-page-select" onchange="state.page=1; state.perPage=+this.value; ladeLog()" style="font-size:13px; padding:3px 6px;">
+    <span id="filter-label" style="font-size:13px; color:#0d6efd; font-weight:500;"></span>
+    <select id="per-page-select" onchange="state.page=1; state.perPage=+this.value; ladeLog()" style="margin-left:auto; font-size:13px; padding:3px 6px;">
         <option value="25">25 / Seite</option>
         <option value="50">50 / Seite</option>
         <option value="100">100 / Seite</option>
@@ -79,15 +79,32 @@ th.sort-desc::after { content:" ▼"; font-size:10px; }
 </style>
 
 <script>
-const state = { page: 1, perPage: 25, sort: 'gesendet_am', order: 'desc', nurGeoeffnet: false };
+// aktiver Kachel-Filter: 'alle' | 'heute' | 'geoeffnet'
+const state = { page: 1, perPage: 25, sort: 'gesendet_am', order: 'desc', kachelFilter: 'alle' };
+
+const FILTER_LABELS = { alle: '', heute: 'Filter: Heute gesendet', geoeffnet: 'Filter: Nur Geöffnete' };
+
+function kachelFilter(typ) {
+    state.kachelFilter = state.kachelFilter === typ ? 'alle' : typ; // nochmal klicken = zurücksetzen
+    state.page = 1;
+    // Kachel-Highlighting
+    document.querySelectorAll('.card-filter').forEach(el => el.classList.remove('aktiv'));
+    if (state.kachelFilter !== 'alle') {
+        const ids = { heute: 'kachel-heute', geoeffnet: 'kachel-oeffnungen' };
+        document.getElementById(ids[state.kachelFilter])?.classList.add('aktiv');
+    }
+    document.getElementById('filter-label').textContent = FILTER_LABELS[state.kachelFilter] || '';
+    ladeLog();
+}
 
 function escHtml(str) {
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 function ladeLog() {
-    state.nurGeoeffnet = document.getElementById('filter-geoeffnet').checked;
-    const url = `/api/einstellungen/versand-log?page=${state.page}&per_page=${state.perPage}&sort=${state.sort}&order=${state.order}&nur_geoeffnet=${state.nurGeoeffnet}`;
+    const nurGeoeffnet = state.kachelFilter === 'geoeffnet';
+    const nurHeute     = state.kachelFilter === 'heute';
+    const url = `/api/einstellungen/versand-log?page=${state.page}&per_page=${state.perPage}&sort=${state.sort}&order=${state.order}&nur_geoeffnet=${nurGeoeffnet}&nur_heute=${nurHeute}`;
 
     fetch(url).then(r => r.json()).then(data => {
         const { total, page, pages, items } = data;
@@ -177,19 +194,9 @@ fetch('/api/stats/').then(r => r.json()).then(data => {
     document.getElementById('stat-abmeldungen').textContent = data.abmeldungen || 0;
 }).catch(() => {});
 
-// Heute-Zähler: eigene API-Abfrage (nur heutige, keine pagination)
-fetch('/api/einstellungen/versand-log?page=1&per_page=1&sort=gesendet_am&order=desc').then(r => r.json()).then(data => {
-    // "Heute" zählen: filter auf Server-Seite nicht nötig, wir nehmen stats
-    fetch('/api/stats/').then(r => r.json()).then(s => {
-        // Heute-Zähler via eigene Abfrage mit nur_heute wäre ideal, daher Workaround:
-        // erste Seite mit sehr großem Datum-Filter — hier einfach alle von heute via separate Abfrage
-        const heute = new Date().toISOString().slice(0, 10);
-        fetch(`/api/einstellungen/versand-log?page=1&per_page=200&sort=gesendet_am&order=desc`)
-            .then(r => r.json()).then(d => {
-                const n = d.items.filter(l => l.gesendet_am && l.gesendet_am.startsWith(heute)).length;
-                document.getElementById('stat-heute').textContent = n < 200 ? n : n + '+';
-            });
-    });
+// Heute-Zähler über den neuen nur_heute-Filter
+fetch('/api/einstellungen/versand-log?page=1&per_page=1&nur_heute=true').then(r => r.json()).then(data => {
+    document.getElementById('stat-heute').textContent = data.total ?? '—';
 }).catch(() => {});
 
 // SMTP-Status
