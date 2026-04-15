@@ -144,5 +144,30 @@ async def abmeldung_bestaetigen(abmeldung_id: int) -> dict:
         return {"error": response.text}
 
 
+@mcp.tool()
+async def lese_bounces() -> list:
+    """
+    Gibt alle unverarbeiteten Hard-Bounce-Adressen zurück.
+    Felder: id, email, firmenname, ansprechpartner, bounce_betreff, empfangen_am.
+    Workflow: Lead in PROD auf Phase 10 (Kein Interesse) setzen + Notiz "Unzustellbar",
+    dann bounce_bestaetigen(id) aufrufen.
+    """
+    response = requests.get(f"{INTERNAL_API_URL}/api/bounces/")
+    try:
+        return response.json()
+    except:
+        return [{"error": response.text}]
+
+
+@mcp.tool()
+async def bounce_bestaetigen(bounce_id: int) -> dict:
+    """Markiert einen Bounce als in PROD verarbeitet (bounce_id aus lese_bounces)"""
+    response = requests.post(f"{INTERNAL_API_URL}/api/bounces/{bounce_id}/bestaetigen")
+    try:
+        return response.json()
+    except:
+        return {"error": response.text}
+
+
 if __name__ == "__main__":
     mcp.run(transport='sse')

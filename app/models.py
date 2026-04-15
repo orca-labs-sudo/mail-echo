@@ -94,3 +94,17 @@ class KonfigurationEintrag(Base):
     schluessel = Column(String, unique=True, nullable=False, index=True)
     wert = Column(String, nullable=True)
     geaendert_am = Column(DateTime, default=func.now(), onupdate=func.now())
+
+
+class Bounce(Base):
+    __tablename__ = "bounces"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    versand_id = Column(Integer, ForeignKey("versand_log.id"), nullable=True)
+    email = Column(String, nullable=True, index=True)
+    firmenname = Column(String, nullable=True)
+    ansprechpartner = Column(String, nullable=True)
+    bounce_betreff = Column(String)
+    bounce_nachricht = Column(String)
+    empfangen_am = Column(DateTime, default=func.now())
+    verarbeitet = Column(Boolean, default=False)

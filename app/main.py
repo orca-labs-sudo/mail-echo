@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from app.database import engine, Base
-from app.routers import templates, mailing, tracking, posteingang, stats, abmeldungen, hooks, hooks_api, einstellungen
+from app.routers import templates, mailing, tracking, posteingang, stats, abmeldungen, hooks, hooks_api, einstellungen, bounces
 from app.config import DASHBOARD_USER, DASHBOARD_PASSWORD
 import secrets
 
@@ -17,6 +17,7 @@ with engine.connect() as conn:
         "ALTER TABLE versand_log ADD COLUMN ansprechpartner TEXT",
         "CREATE TABLE IF NOT EXISTS konfiguration (id INTEGER PRIMARY KEY AUTOINCREMENT, schluessel TEXT UNIQUE NOT NULL, wert TEXT, geaendert_am DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS hook_klicks (id INTEGER PRIMARY KEY AUTOINCREMENT, tracking_uuid TEXT NOT NULL, hook_typ TEXT NOT NULL, email TEXT NOT NULL, firmenname TEXT, ansprechpartner TEXT, geklickt_am DATETIME DEFAULT CURRENT_TIMESTAMP, verarbeitet INTEGER DEFAULT 0)",
+        "CREATE TABLE IF NOT EXISTS bounces (id INTEGER PRIMARY KEY AUTOINCREMENT, versand_id INTEGER REFERENCES versand_log(id), email TEXT, firmenname TEXT, ansprechpartner TEXT, bounce_betreff TEXT, bounce_nachricht TEXT, empfangen_am DATETIME DEFAULT CURRENT_TIMESTAMP, verarbeitet INTEGER DEFAULT 0)",
     ]:
         try:
             conn.execute(text(stmt))
@@ -65,6 +66,7 @@ app.include_router(abmeldungen.router, prefix="/api/abmeldungen", tags=["abmeldu
 app.include_router(hooks.router, prefix="/hook", tags=["hooks-public"])
 app.include_router(hooks_api.router, prefix="/api/hooks", tags=["hooks-api"])
 app.include_router(einstellungen.router, prefix="/api/einstellungen", tags=["einstellungen"])
+app.include_router(bounces.router, prefix="/api/bounces", tags=["bounces"])
 
 @app.get("/", response_class=HTMLResponse)
 def root(request: Request, _=Depends(require_auth)):

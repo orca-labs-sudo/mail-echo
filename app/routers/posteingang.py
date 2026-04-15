@@ -1,11 +1,45 @@
+import re
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.services.imap_service import get_unseen_emails
-from app.models import Posteingang, VersandLog
+from app.models import Posteingang, VersandLog, Bounce
 from pydantic import BaseModel
 
 router = APIRouter()
+
+# Typische Absender und Betreffs von NDR-Bounce-Mails
+_BOUNCE_ABSENDER = re.compile(
+    r'(mailer-daemon|postmaster|mail\s*delivery|delivery\s*subsystem|undeliverable)',
+    re.IGNORECASE
+)
+_BOUNCE_BETREFF = re.compile(
+    r'(undelivered|delivery\s*status|mail\s*delivery\s*fail|bounce|nicht\s*zustellbar|zurück.*unzustellbar|failure\s*notice)',
+    re.IGNORECASE
+)
+_EMAIL_RE = re.compile(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}')
+
+
+def _ist_bounce(absender: str, betreff: str) -> bool:
+    return bool(_BOUNCE_ABSENDER.search(absender) or _BOUNCE_BETREFF.search(betreff))
+
+
+def _extrahiere_bounce_email(plain_text: str, in_reply_to: str, db: Session) -> tuple:
+    """Gibt (versand_id, email, firmenname, ansprechpartner) zurück."""
+    # Priorität 1: In-Reply-To → direkter VersandLog-Treffer
+    if in_reply_to:
+        log = db.query(VersandLog).filter(VersandLog.smtp_message_id == in_reply_to).first()
+        if log:
+            return log.id, log.email, log.firmenname, log.ansprechpartner
+
+    # Priorität 2: E-Mail-Adressen im Body gegen VersandLog abgleichen
+    kandidaten = _EMAIL_RE.findall(plain_text or "")
+    for kandidat in kandidaten:
+        log = db.query(VersandLog).filter(VersandLog.email == kandidat).first()
+        if log:
+            return log.id, log.email, log.firmenname, log.ansprechpartner
+
+    return None, None, None, None
 
 class AuswertungRequest(BaseModel):
     entscheidung: str
@@ -15,9 +49,30 @@ class AuswertungRequest(BaseModel):
 def fetch_emails(db: Session = Depends(get_db)):
     emails = get_unseen_emails()
     neue_antworten = 0
+    neue_bounces = 0
     nicht_zugeordnet = 0
 
     for em in emails:
+        # Bounce-Mails separat behandeln
+        if _ist_bounce(em["absender"], em["betreff"]):
+            versand_id, email, firmenname, ansprechpartner = _extrahiere_bounce_email(
+                em["plain_text"], em["in_reply_to"], db
+            )
+            # Doppelte Bounces verhindern (gleiche imap_uid)
+            exist = db.query(Bounce).filter(Bounce.bounce_betreff == em["betreff"],
+                                            Bounce.email == email).first() if email else None
+            if not exist:
+                db.add(Bounce(
+                    versand_id=versand_id,
+                    email=email,
+                    firmenname=firmenname,
+                    ansprechpartner=ansprechpartner,
+                    bounce_betreff=em["betreff"],
+                    bounce_nachricht=em["plain_text"][:2000] if em["plain_text"] else None,
+                ))
+                neue_bounces += 1
+            continue
+
         exist = db.query(Posteingang).filter(Posteingang.imap_uid == em["imap_uid"]).first()
         if exist:
             continue
@@ -43,7 +98,7 @@ def fetch_emails(db: Session = Depends(get_db)):
         neue_antworten += 1
 
     db.commit()
-    return {"neue_antworten": neue_antworten, "nicht_zugeordnet": nicht_zugeordnet}
+    return {"neue_antworten": neue_antworten, "neue_bounces": neue_bounces, "nicht_zugeordnet": nicht_zugeordnet}
 
 @router.get("/")
 def get_posteingang(db: Session = Depends(get_db)):
