@@ -1,11 +1,14 @@
 import re
+import logging
 from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.services.imap_service import get_unseen_emails
 from app.models import Posteingang, VersandLog, Bounce
 from pydantic import BaseModel
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Typische Absender und Betreffs von NDR-Bounce-Mails
@@ -50,7 +53,15 @@ class AuswertungRequest(BaseModel):
 
 @router.post("/fetch")
 def fetch_emails(db: Session = Depends(get_db)):
-    emails = get_unseen_emails()
+    try:
+        emails = get_unseen_emails()
+    except ConnectionError as e:
+        logger.error(f"IMAP fetch fehlgeschlagen: {e}")
+        return JSONResponse(
+            status_code=503,
+            content={"error": "IMAP-Verbindung fehlgeschlagen", "detail": str(e)}
+        )
+
     neue_antworten = 0
     neue_bounces = 0
     nicht_zugeordnet = 0
