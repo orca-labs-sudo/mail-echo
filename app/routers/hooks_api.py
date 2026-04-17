@@ -32,6 +32,7 @@ def get_offene_unterlagen(db: Session = Depends(get_db)):
     eintraege = db.query(HookKlick).filter(
         HookKlick.hook_typ == "unterlagen",
         HookKlick.verarbeitet == False,
+        HookKlick.scanner == False,
     ).order_by(HookKlick.geklickt_am.desc()).all()
     return _klicks_als_liste(eintraege)
 
@@ -53,6 +54,7 @@ def get_offene_interesse(db: Session = Depends(get_db)):
     eintraege = db.query(HookKlick).filter(
         HookKlick.hook_typ == "interesse",
         HookKlick.verarbeitet == False,
+        HookKlick.scanner == False,
     ).order_by(HookKlick.geklickt_am.desc()).all()
     return _klicks_als_liste(eintraege)
 

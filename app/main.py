@@ -18,6 +18,7 @@ with engine.connect() as conn:
         "CREATE TABLE IF NOT EXISTS konfiguration (id INTEGER PRIMARY KEY AUTOINCREMENT, schluessel TEXT UNIQUE NOT NULL, wert TEXT, geaendert_am DATETIME DEFAULT CURRENT_TIMESTAMP)",
         "CREATE TABLE IF NOT EXISTS hook_klicks (id INTEGER PRIMARY KEY AUTOINCREMENT, tracking_uuid TEXT NOT NULL, hook_typ TEXT NOT NULL, email TEXT NOT NULL, firmenname TEXT, ansprechpartner TEXT, geklickt_am DATETIME DEFAULT CURRENT_TIMESTAMP, verarbeitet INTEGER DEFAULT 0)",
         "CREATE TABLE IF NOT EXISTS bounces (id INTEGER PRIMARY KEY AUTOINCREMENT, versand_id INTEGER REFERENCES versand_log(id), email TEXT, firmenname TEXT, ansprechpartner TEXT, bounce_betreff TEXT, bounce_nachricht TEXT, empfangen_am DATETIME DEFAULT CURRENT_TIMESTAMP, verarbeitet INTEGER DEFAULT 0)",
+        "ALTER TABLE hook_klicks ADD COLUMN scanner INTEGER DEFAULT 0",
     ]:
         try:
             conn.execute(text(stmt))

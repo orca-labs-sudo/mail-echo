@@ -85,6 +85,7 @@ class HookKlick(Base):
     ansprechpartner = Column(String)
     geklickt_am = Column(DateTime, default=func.now())
     verarbeitet = Column(Boolean, default=False)
+    scanner = Column(Boolean, default=False)
 
 
 class KonfigurationEintrag(Base):
